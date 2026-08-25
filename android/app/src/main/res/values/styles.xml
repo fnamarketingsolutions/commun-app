@@ -1,9 +1,12 @@
 <resources>
+  <!-- Splash theme – used during app launch (no app icon, just a solid background) -->
+  <style name="SplashTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <item name="android:windowBackground">@color/splash_background</item>
+  </style>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
-        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
-    </style>
-
+  <!-- Main app theme – used after the splash screen is hidden -->
+  <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <!-- Add any custom styles here (e.g., status bar color, etc.) -->
+    <item name="android:windowBackground">@color/splash_background</item>
+  </style>
 </resources>

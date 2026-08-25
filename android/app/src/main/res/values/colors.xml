@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="splash_background">#FFFFFF</color>
+   <color name="notification_accent">#662d91</color>
+  <!-- Add any other colors you need here -->
+</resources>
