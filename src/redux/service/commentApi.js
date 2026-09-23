@@ -7,8 +7,7 @@ export const commentApi = createApi({
   tagTypes: ['Comments', 'CanReview', 'TopServices', 'TopCategories'],
   endpoints: (builder) => ({
 
-    // GET /api/comments/get-comments/:serviceId
-    // Public — returns { comments, serviceProvider }
+
     getCommentsByService: builder.query({
       query: (serviceId) => ({
         url: `/get-comments/${serviceId}`,
@@ -17,8 +16,7 @@ export const commentApi = createApi({
       providesTags: (result, error, serviceId) => [{ type: 'Comments', id: serviceId }],
     }),
 
-    // GET /api/comments/can-review/:serviceId
-    // Private (customer) — returns { canReview: boolean }
+
     canReviewService: builder.query({
       query: (serviceId) => ({
         url: `/can-review/${serviceId}`,
@@ -27,7 +25,7 @@ export const commentApi = createApi({
       providesTags: (result, error, serviceId) => [{ type: 'CanReview', id: serviceId }],
     }),
 
-    // POST /api/comments/create-comment/:serviceId
+
     createComment: builder.mutation({
       // arg: { serviceId, comment, rating }
       query: ({ serviceId, comment, rating }) => ({
@@ -39,10 +37,9 @@ export const commentApi = createApi({
         error ? [] : [{ type: 'Comments', id: serviceId }, { type: 'CanReview', id: serviceId }],
     }),
 
-    // PUT /api/comments/update-comment/:commentId
+
     updateComment: builder.mutation({
-      // arg: { commentId, serviceId, comment, rating }
-      // serviceId is required client-side only, to invalidate the right cache entry
+
       query: ({ commentId, comment, rating }) => ({
         url: `/update-comment/${commentId}`,
         method: 'PUT',
@@ -52,9 +49,9 @@ export const commentApi = createApi({
         error ? [] : [{ type: 'Comments', id: serviceId }],
     }),
 
-    // DELETE /api/comments/delete/:commentId
+
     deleteComment: builder.mutation({
-      // arg: { commentId, serviceId }
+
       query: ({ commentId }) => ({
         url: `/delete/${commentId}`,
         method: 'DELETE',
@@ -63,9 +60,9 @@ export const commentApi = createApi({
         error ? [] : [{ type: 'Comments', id: serviceId }, { type: 'CanReview', id: serviceId }],
     }),
 
-    // POST /api/comments/reply/:commentId
+
     addReply: builder.mutation({
-      // arg: { commentId, serviceId, reply }
+
       query: ({ commentId, reply }) => ({
         url: `/reply/${commentId}`,
         method: 'POST',
@@ -75,9 +72,9 @@ export const commentApi = createApi({
         error ? [] : [{ type: 'Comments', id: serviceId }],
     }),
 
-    // PUT /api/comments/reply/:commentId
+
     updateReply: builder.mutation({
-      // arg: { commentId, serviceId, reply }
+
       query: ({ commentId, reply }) => ({
         url: `/reply/${commentId}`,
         method: 'PUT',
@@ -87,9 +84,9 @@ export const commentApi = createApi({
         error ? [] : [{ type: 'Comments', id: serviceId }],
     }),
 
-    // DELETE /api/comments/reply/:commentId
+
     deleteReply: builder.mutation({
-      // arg: { commentId, serviceId }
+
       query: ({ commentId }) => ({
         url: `/reply/${commentId}`,
         method: 'DELETE',
@@ -98,7 +95,7 @@ export const commentApi = createApi({
         error ? [] : [{ type: 'Comments', id: serviceId }],
     }),
 
-    // GET /api/comments/top-services?limit=6
+
     getTopServices: builder.query({
       query: (limit) => ({
         url: '/top-services',
@@ -108,7 +105,7 @@ export const commentApi = createApi({
       providesTags: ['TopServices'],
     }),
 
-    // GET /api/comments/top-categories?limit=6
+
     getTopCategories: builder.query({
       query: (limit) => ({
         url: '/top-categories',

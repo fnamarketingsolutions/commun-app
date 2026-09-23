@@ -33,6 +33,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { NetworkAwareView } from '../../components/NetworkAwareView';
 import GradientText from '../../components/common/GradientText';
 import { setUser } from '../../redux/slices/authSlice'; // ✅ Added
+import { CustomAlertModal } from '../../components/CustomAlertModal';
 
 const { width } = Dimensions.get('window');
 
@@ -166,6 +167,28 @@ const RegisterScreen = ({ navigation }) => {
   const strength = getStrength(password);
 
   // ── Navigation helpers ────────────────────────────────────────────────────
+  // ── Alert Modal state ─────────────────────────────────────────────────────
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error',
+    onPrimaryPress: null,
+  });
+
+  const showAlert = useCallback((title, message, type = 'error', onPrimaryPress = null) => {
+    setAlertConfig({ visible: true, title, message, type, onPrimaryPress });
+  }, []);
+
+  const hideAlert = useCallback(() => {
+    const cb = alertConfig.onPrimaryPress;
+    setAlertConfig((prev) => ({ ...prev, visible: false, onPrimaryPress: null }));
+    if (typeof cb === 'function') {
+      cb();
+    }
+  }, [alertConfig.onPrimaryPress]);
+
+  // ── Navigation helpers ────────────────────────────────────────────────────
   const goNext = () => setStep(s => Math.min(s + 1, STEPS.length));
   const goPrev = () => {
     if (step === 1) navigation.goBack();
@@ -175,36 +198,44 @@ const RegisterScreen = ({ navigation }) => {
   // ── Step 1 validation ─────────────────────────────────────────────────────
   const handleStep1 = useCallback(() => {
     if (!validateName(firstName)) {
-      Alert.alert('Invalid First Name', 'Please enter a valid first name (letters only).');
+      showAlert('Invalid First Name', 'Please enter a valid first name (letters only).', 'warning');
       return;
     }
     if (!validateName(lastName)) {
-      Alert.alert('Invalid Last Name', 'Please enter a valid last name (letters only).');
+      showAlert('Invalid Last Name', 'Please enter a valid last name (letters only).', 'warning');
       return;
     }
     goNext();
-  }, [firstName, lastName]);
+  }, [firstName, lastName, showAlert]);
 
   // ── Step 2 validation ─────────────────────────────────────────────────────
   const handleStep2 = useCallback(() => {
     if (!validateEmail(email)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      showAlert('Invalid Email', 'Please enter a valid email address.', 'warning');
       return;
     }
     if (password.length < 8) {
-      Alert.alert('Weak Password', 'Password must be at least 8 characters.');
+      showAlert('Weak Password', 'Password must be at least 8 characters long.', 'warning');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      showAlert(
+        'Special Character Required',
+        'Password must contain at least one special character (e.g. @, #, $, %, &, *).',
+        'warning'
+      );
       return;
     }
     goNext();
-  }, [email, password]);
+  }, [email, password, showAlert]);
 
   // ── Step 3: Send OTP ──────────────────────────────────────────────────────
   const handleSendOtp = useCallback(() => {
     clearDebounce();
-    if (!isOnline) { Alert.alert('No Internet', 'Please connect and try again.'); return; }
+    if (!isOnline) { showAlert('No Internet', 'Please connect and try again.', 'warning'); return; }
     const digits = phone.replace(/\D/g, '');
     if (!validatePhone(digits)) {
-      Alert.alert('Invalid Number', 'Please enter a valid 10‑digit phone number.');
+      showAlert('Invalid Number', 'Please enter a valid 10‑digit phone number.', 'warning');
       return;
     }
     debounceTimer.current = setTimeout(async () => {
@@ -214,19 +245,19 @@ const RegisterScreen = ({ navigation }) => {
         setOtp('');
         setResendSeconds(30);
       } catch (err) {
-        Alert.alert('Error', err?.data?.message || 'Could not send OTP. Please try again.');
+        showAlert('Error', err?.data?.message || 'Could not send OTP. Please try again.', 'error');
       } finally { debounceTimer.current = null; }
     }, 300);
-  }, [phone, sendSignupOtp, clearDebounce, isOnline]);
+  }, [phone, sendSignupOtp, clearDebounce, isOnline, showAlert]);
 
   // ── Step 3: Verify OTP ────────────────────────────────────────────────────
   const handleVerifyOtp = useCallback(() => {
     clearDebounce();
-    if (!isOnline) { Alert.alert('No Internet', 'Please connect and try again.'); return; }
+    if (!isOnline) { showAlert('No Internet', 'Please connect and try again.', 'warning'); return; }
     const digits = phone.replace(/\D/g, '');
     const code = otp.trim();
     if (!validateOtp(code)) {
-      Alert.alert('Invalid OTP', 'Please enter the 4‑6 digit OTP sent to your phone.');
+      showAlert('Invalid OTP', 'Please enter the 4‑6 digit OTP sent to your phone.', 'warning');
       return;
     }
     debounceTimer.current = setTimeout(async () => {
@@ -237,50 +268,50 @@ const RegisterScreen = ({ navigation }) => {
         setPhoneVerificationToken(token);
         setPhoneVerified(true);
       } catch (err) {
-        Alert.alert('Verification Failed', err?.data?.message || 'Invalid or expired OTP.');
+        showAlert('Verification Failed', err?.data?.message || 'Invalid or expired OTP. Please try again.', 'error');
       } finally { debounceTimer.current = null; }
     }, 300);
-  }, [phone, otp, verifySignupOtp, clearDebounce, isOnline]);
+  }, [phone, otp, verifySignupOtp, clearDebounce, isOnline, showAlert]);
 
   // ── Step 3 → 4 ───────────────────────────────────────────────────────────
   const handleStep3 = useCallback(() => {
     const digits = phone.replace(/\D/g, '');
     if (!validatePhone(digits)) {
-      Alert.alert('Invalid Number', 'Please enter a valid 10‑digit phone number.');
+      showAlert('Invalid Number', 'Please enter a valid 10‑digit phone number.', 'warning');
       return;
     }
     if (!phoneVerified) {
-      Alert.alert('Verify Phone', 'Please verify your phone number with the OTP before continuing.');
+      showAlert('Verify Phone', 'Please verify your phone number with the OTP before continuing.', 'warning');
       return;
     }
     goNext();
-  }, [phone, phoneVerified]);
+  }, [phone, phoneVerified, showAlert]);
 
   // ── Step 4 validation ─────────────────────────────────────────────────────
   const handleStep4 = useCallback(() => {
     if (!community) {
-      Alert.alert('Community Required', 'Please select your community.');
+      showAlert('Community Required', 'Please select your community.', 'warning');
       return;
     }
     if (community.communName === '__other__' && !otherCommunityName.trim()) {
-      Alert.alert('Community Name Required', 'Please enter your community name.');
+      showAlert('Community Name Required', 'Please enter your community name.', 'warning');
       return;
     }
     goNext();
-  }, [community, otherCommunityName]);
+  }, [community, otherCommunityName, showAlert]);
 
   // ── Step 5: Final submit ──────────────────────────────────────────────────
   const handleCreate = useCallback(() => {
     clearDebounce();
-    if (!isOnline) { Alert.alert('No Internet', 'Please connect and try again.'); return; }
+    if (!isOnline) { showAlert('No Internet', 'Please connect and try again.', 'warning'); return; }
 
     const flat = flatNumber.trim();
     if (!flat) {
-      Alert.alert('Flat Number Required', 'Please enter your flat number.');
+      showAlert('Flat Number Required', 'Please enter your flat number.', 'warning');
       return;
     }
     if (!agreed) {
-      Alert.alert('Terms Required', 'Please agree to the Terms & Conditions and Privacy Policy.');
+      showAlert('Terms Required', 'Please agree to the Terms & Conditions and Privacy Policy.', 'warning');
       return;
     }
 
@@ -312,26 +343,28 @@ const RegisterScreen = ({ navigation }) => {
         };
 
         if (isOtherCommunity) {
-          Alert.alert(
+          showAlert(
             'Welcome!',
             'Your community has been created. You are now logged in.',
-            [{ text: 'Get Started', onPress: navigateToLocation }],
+            'success',
+            navigateToLocation
           );
         } else {
-          Alert.alert(
+          showAlert(
             'Registration Submitted',
             'Your request has been sent to the secretary for approval. You will be notified once approved.',
-            [{ text: 'OK', onPress: navigateToLocation }],
+            'info',
+            navigateToLocation
           );
         }
       } catch (error) {
-        Alert.alert('Registration Failed', error?.data?.message || 'Something went wrong.');
+        showAlert('Registration Failed', error?.data?.message || 'Something went wrong.', 'error');
       } finally { debounceTimer.current = null; }
     }, 300);
   }, [
     flatNumber, agreed, firstName, lastName, email, password,
     phone, phoneVerificationToken, community, register, navigation,
-    clearDebounce, isOnline, dispatch,
+    clearDebounce, isOnline, dispatch, otherCommunityName, showAlert,
   ]);
 
   // ── Step header copy ──────────────────────────────────────────────────────
@@ -579,6 +612,86 @@ const RegisterScreen = ({ navigation }) => {
                   </View>
                 )}
 
+                {/* ── Password Suggestions & Requirements Box ── */}
+                <View style={styles.passwordHintsCard}>
+                  <View style={styles.passwordHintsHeader}>
+                    <Icon name="shield-checkmark-outline" size={scaleFont(15)} color={COLORS.primary} />
+                    <Text style={styles.passwordHintsTitle} maxFontSizeMultiplier={1.3}>
+                      Password Requirements
+                    </Text>
+                  </View>
+
+                  <View style={styles.passwordHintsGrid}>
+                    <View style={styles.passwordHintItem}>
+                      <Icon
+                        name={password.length >= 8 ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={scaleFont(14)}
+                        color={password.length >= 8 ? '#10B981' : COLORS.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.passwordHintText,
+                          password.length >= 8 && styles.passwordHintTextMet,
+                        ]}
+                        maxFontSizeMultiplier={1.3}
+                      >
+                        At least 8 characters
+                      </Text>
+                    </View>
+
+                    <View style={styles.passwordHintItem}>
+                      <Icon
+                        name={/[^A-Za-z0-9]/.test(password) ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={scaleFont(14)}
+                        color={/[^A-Za-z0-9]/.test(password) ? '#10B981' : COLORS.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.passwordHintText,
+                          /[^A-Za-z0-9]/.test(password) && styles.passwordHintTextMet,
+                        ]}
+                        maxFontSizeMultiplier={1.3}
+                      >
+                        At least 1 special character (e.g. @, #, $, %)
+                      </Text>
+                    </View>
+
+                    <View style={styles.passwordHintItem}>
+                      <Icon
+                        name={/[A-Z]/.test(password) ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={scaleFont(14)}
+                        color={/[A-Z]/.test(password) ? '#10B981' : COLORS.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.passwordHintText,
+                          /[A-Z]/.test(password) && styles.passwordHintTextMet,
+                        ]}
+                        maxFontSizeMultiplier={1.3}
+                      >
+                        1+ uppercase letter (A-Z)
+                      </Text>
+                    </View>
+
+                    <View style={styles.passwordHintItem}>
+                      <Icon
+                        name={/[0-9]/.test(password) ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={scaleFont(14)}
+                        color={/[0-9]/.test(password) ? '#10B981' : COLORS.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.passwordHintText,
+                          /[0-9]/.test(password) && styles.passwordHintTextMet,
+                        ]}
+                        maxFontSizeMultiplier={1.3}
+                      >
+                        1+ number (0-9)
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
                 <TouchableOpacity
                   onPress={handleStep2}
                   activeOpacity={0.85}
@@ -648,12 +761,12 @@ const RegisterScreen = ({ navigation }) => {
                   </View>
                 </LinearGradient>
 
-                {!phoneVerified && (
+                {!otpSent && !phoneVerified && (
                   <TouchableOpacity
                     onPress={handleSendOtp}
                     activeOpacity={0.85}
                     style={[styles.btnWrapper, { marginBottom: scaleHeight(10) }]}
-                    disabled={isSendingOtp || !isOnline || resendSeconds > 0}
+                    disabled={isSendingOtp || !isOnline || phone.length < 10}
                   >
                     <LinearGradient
                       colors={gradientColors}
@@ -665,13 +778,7 @@ const RegisterScreen = ({ navigation }) => {
                         <ActivityIndicator color={COLORS.white} />
                       ) : (
                         <Text style={styles.btnText} maxFontSizeMultiplier={1.3}>
-                          {!isOnline
-                            ? 'No Internet'
-                            : resendSeconds > 0
-                              ? `Resend in ${resendSeconds}s`
-                              : otpSent
-                                ? 'Resend OTP'
-                                : 'Send OTP'}
+                          {!isOnline ? 'No Internet' : 'Send OTP'}
                         </Text>
                       )}
                     </LinearGradient>
@@ -709,7 +816,7 @@ const RegisterScreen = ({ navigation }) => {
 
                     <View style={styles.otpActions}>
                       <TouchableOpacity
-                        onPress={() => { setOtpSent(false); setOtp(''); }}
+                        onPress={() => { setOtpSent(false); setOtp(''); setResendSeconds(0); }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         disabled={isLoading}
                       >
@@ -721,18 +828,25 @@ const RegisterScreen = ({ navigation }) => {
                           Change number
                         </GradientText>
                       </TouchableOpacity>
+
                       <TouchableOpacity
                         onPress={handleSendOtp}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        disabled={isLoading || !isOnline}
+                        disabled={isLoading || !isOnline || resendSeconds > 0}
                       >
-                        <GradientText
-                          colors={gradientColors}
-                          style={styles.otpActionLink}
-                          maxFontSizeMultiplier={1.3}
-                        >
-                          Resend OTP
-                        </GradientText>
+                        {resendSeconds > 0 ? (
+                          <Text style={styles.otpActionDisabled} maxFontSizeMultiplier={1.3}>
+                            Resend OTP in {resendSeconds}s
+                          </Text>
+                        ) : (
+                          <GradientText
+                            colors={gradientColors}
+                            style={styles.otpActionLink}
+                            maxFontSizeMultiplier={1.3}
+                          >
+                            Resend OTP
+                          </GradientText>
+                        )}
                       </TouchableOpacity>
                     </View>
 
@@ -740,7 +854,7 @@ const RegisterScreen = ({ navigation }) => {
                       onPress={handleVerifyOtp}
                       activeOpacity={0.85}
                       style={[styles.btnWrapper, { marginBottom: scaleHeight(10) }]}
-                      disabled={isVerifyingOtp || isSendingOtp || !isOnline}
+                      disabled={isVerifyingOtp || isSendingOtp || !isOnline || otp.length < 4}
                     >
                       <LinearGradient
                         colors={gradientColors}
@@ -1051,6 +1165,16 @@ const RegisterScreen = ({ navigation }) => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* ── Custom Alert Modal ── */}
+      <CustomAlertModal
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onPrimaryPress={hideAlert}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 };
@@ -1288,6 +1412,11 @@ const styles = StyleSheet.create({
     fontWeight: FONTS.weightSemiBold,
     // color removed – handled by GradientText
   },
+  otpActionDisabled: {
+    fontSize: scaleFont(FONTS.link) - 1,
+    fontWeight: FONTS.weightMedium,
+    color: COLORS.textMuted,
+  },
 
   modalOverlay: {
     flex: 1,
@@ -1322,6 +1451,45 @@ const styles = StyleSheet.create({
   simpleOptionTextSelected: { color: COLORS.primary, fontWeight: FONTS.weightSemiBold },
   otherOption: { borderBottomWidth: 0 },
   otherOptionLeft: { flexDirection: 'row', alignItems: 'center', gap: moderateScale(8) },
+
+  passwordHintsCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: moderateScale(RADIUS.md, 0.2),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: moderateScale(12, 0.2),
+    paddingVertical: moderateScale(10, 0.2),
+    marginBottom: scaleHeight(12),
+    marginTop: scaleHeight(2),
+  },
+  passwordHintsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(6, 0.2),
+    marginBottom: moderateScale(8, 0.2),
+  },
+  passwordHintsTitle: {
+    fontSize: scaleFont(FONTS.small),
+    fontWeight: FONTS.weightSemiBold,
+    color: COLORS.textPrimary,
+  },
+  passwordHintsGrid: {
+    gap: moderateScale(6, 0.2),
+  },
+  passwordHintItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(6, 0.2),
+  },
+  passwordHintText: {
+    fontSize: scaleFont(FONTS.small - 1),
+    color: COLORS.textMuted,
+    fontWeight: FONTS.weightRegular,
+  },
+  passwordHintTextMet: {
+    color: '#065F46',
+    fontWeight: FONTS.weightMedium,
+  },
 });
 
 export default RegisterScreen;

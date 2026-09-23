@@ -1,4 +1,3 @@
-// src/redux/service/bannerApi.js
 
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { bannerAxiosBaseQuery } from './bannerAxiosBaseQuery';

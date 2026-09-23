@@ -1,4 +1,4 @@
-// components/common/ProfileSkeleton.jsx
+
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Skeleton from './Skeleton';

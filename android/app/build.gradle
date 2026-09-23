@@ -16,10 +16,10 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.commun"
+    namespace "in.commun.app"
 
     defaultConfig {
-        applicationId "com.commun"
+        applicationId "in.commun.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

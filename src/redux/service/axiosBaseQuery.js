@@ -12,11 +12,10 @@ export const axiosBaseQuery = () =>
       });
       return { data: result.data };
     } catch (axiosError) {
-      return {
-        error: {
-          status: axiosError.response?.status,
-          data: axiosError.response?.data || axiosError.message,
-        },
+      const error = {
+        status: axiosError.response?.status ?? null,
+        data: axiosError.response?.data || axiosError.message,
       };
+      return { error };
     }
-  };
+  };

@@ -1,5 +1,4 @@
-// screens/secretary/EventsScreen.jsx
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -429,7 +428,12 @@ const EventsScreen = () => {
   }, [refetchAll, isOnline]);
 
   // ─── Derived data ───
-  const events = eventsData?.events || [];
+  const serverEvents = eventsData?.events || [];
+
+  const events = useMemo(() => {
+    return serverEvents;
+  }, [serverEvents]);
+
   const communityCommunName = featureTogglesData?.communityCommunName || null;
   const showToMembers = Boolean(featureTogglesData?.toggles?.events);
 

@@ -3,33 +3,9 @@ import { axiosBaseQuery } from './axiosBaseQuery';
 import apiClient from './apiClient';
 import { providerApi } from './providerApi';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// apiClient's baseURL is scoped to '/api/user' (see apiClient.js — it mirrors
-// the backend's `app.use('/api/user', userRouter)` mount). That's correct for
-// every endpoint that genuinely lives inside userRouter (login, update-profile,
-// community-broadcasts, etc).
-//
-// But 'vendors' and 'emergency-contacts' are separate, TOP-LEVEL routers on
-// the backend:
-//   app.use('/api/vendors', vendorRouter);
-//   app.use('/api/emergency-contacts', emergencyContactRouter);
-// They are NOT nested under /api/user, so a relative URL from this client can
-// never reach them — that was the source of the 404s.
-//
-// Fix: derive the API root (strip the trailing '/user') once, and use an
-// ABSOLUTE url for just these two endpoints. Axios ignores baseURL whenever
-// the request url is already absolute, so this reaches the correct top-level
-// routes without needing a second axios client or touching apiClient.js.
-// ─────────────────────────────────────────────────────────────────────────────
 const API_ROOT = (apiClient.defaults.baseURL || '').replace(/\/user\/?$/, '');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// All tags whose data is scoped to "whoever is currently logged in". Any of
-// these can end up serving stale data from a PREVIOUS user's session if not
-// invalidated on login/logout, because most of these queries take no
-// arguments — so RTK Query caches them under a single shared key regardless
-// of which user made the request.
-// ─────────────────────────────────────────────────────────────────────────────
+
 const USER_SCOPED_TAGS = [
   'User',
   'CommunityFeatures',
@@ -187,6 +163,14 @@ export const api = createApi({
         data: body,
       }),
     }),
+    deleteAccount: builder.mutation({
+      query: (body) => ({
+        url: '/delete-account',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: USER_SCOPED_TAGS,
+    }),
     forgotPassword: builder.mutation({
       query: (body) => ({
         url: '/forgot-password',
@@ -203,22 +187,22 @@ export const api = createApi({
     }),
 
     getPublicServices: builder.query({
-  query: ({ page = 1, limit = 12, category } = {}) => {
-    let url = `${API_ROOT}/service-offering?page=${page}&limit=${limit}`;
-    if (category) url += `&category=${encodeURIComponent(category)}`;
-    return { url, method: 'GET' };
-  },
-  providesTags: ['Services'],
-}),
+      query: ({ page = 1, limit = 12, category } = {}) => {
+        let url = `${API_ROOT}/service-offering?page=${page}&limit=${limit}`;
+        if (category) url += `&category=${encodeURIComponent(category)}`;
+        return { url, method: 'GET' };
+      },
+      providesTags: ['Services'],
+    }),
 
-getCommunityServices: builder.query({
-  query: ({ page = 1, limit = 12, category } = {}) => {
-    let url = `${API_ROOT}/service-offering/community?page=${page}&limit=${limit}`;
-    if (category) url += `&category=${encodeURIComponent(category)}`;
-    return { url, method: 'GET' };
-  },
-  providesTags: ['Services'],
-}),
+    getCommunityServices: builder.query({
+      query: ({ page = 1, limit = 12, category } = {}) => {
+        let url = `${API_ROOT}/service-offering/community?page=${page}&limit=${limit}`;
+        if (category) url += `&category=${encodeURIComponent(category)}`;
+        return { url, method: 'GET' };
+      },
+      providesTags: ['Services'],
+    }),
 
     // ----- Wishlist endpoints -----
     addToWishlist: builder.mutation({
@@ -331,21 +315,21 @@ getCommunityServices: builder.query({
       providesTags: ['Services'],
     }),
     // ── FCM Mobile Push ────────────────────────────────────────────────────────
-registerMobilePush: builder.mutation({
-  query: (body) => ({
-    url: `${API_ROOT}/push/mobile/register`,
-    method: 'POST',
-    data: body,
-  }),
-}),
+    registerMobilePush: builder.mutation({
+      query: (body) => ({
+        url: `${API_ROOT}/push/mobile/register`,
+        method: 'POST',
+        data: body,
+      }),
+    }),
 
-unregisterMobilePush: builder.mutation({
-  query: (body) => ({
-    url: `${API_ROOT}/push/mobile/unregister`,
-    method: 'DELETE',
-    data: body,
-  }),
-}),
+    unregisterMobilePush: builder.mutation({
+      query: (body) => ({
+        url: `${API_ROOT}/push/mobile/unregister`,
+        method: 'DELETE',
+        data: body,
+      }),
+    }),
 
 
 
@@ -361,7 +345,7 @@ unregisterMobilePush: builder.mutation({
   }),
 });
 
-// ─── Exports ────────────────────────────────────────────────────────────────
+
 export const {
   useSignupCommunitiesQuery,
   useRegisterMutation,
@@ -380,6 +364,7 @@ export const {
   useDeleteCommunityEventMutation,
   useUpdateProfileMutation,
   useChangePasswordMutation,
+  useDeleteAccountMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useAddToWishlistMutation,
@@ -404,5 +389,5 @@ export const {
   useGetServiceByIdQuery,
   useLazyGetServiceByIdQuery,
   useRegisterMobilePushMutation,
-useUnregisterMobilePushMutation,
+  useUnregisterMobilePushMutation,
 } = api;

@@ -589,7 +589,7 @@ const ServiceDetailScreen = ({ route, navigation }) => {
       } else {
         await addToWishlist(serviceId).unwrap();
       }
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const [incrementServiceOfferingCount] = useIncrementServiceOfferingCountMutation();
@@ -1073,14 +1073,7 @@ const ServiceDetailScreen = ({ route, navigation }) => {
                       </Text>
                     </View>
                   ))}
-                  {service.experience > 0 && (
-                    <View style={styles.heroChip}>
-                      <Icon name="time-outline" size={scaleFont(12)} color={COLORS.primary} />
-                      <Text style={styles.heroChipText} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
-                        {service.experience}+ Yr{service.experience !== 1 ? 's' : ''} Experience
-                      </Text>
-                    </View>
-                  )}
+
                   {/* ── View count chip – always shown ── */}
                   <View style={styles.heroChip}>
                     <Icon name="eye-outline" size={scaleFont(12)} color={COLORS.primary} />

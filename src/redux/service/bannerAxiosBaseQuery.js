@@ -1,4 +1,3 @@
-// src/redux/service/bannerAxiosBaseQuery.js
 
 import bannerApiClient from '../service/bannerApiClient';
 

@@ -6,13 +6,6 @@ import Geocoder from 'react-native-geocoder-reborn';
 
 import { useNetworkStatus } from './useNetworkStatus';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared device-location logic (permission request → GPS fetch → reverse
-// geocode). Extracted from LocationPermissionScreen so it can be reused by
-// the HomeHeader "change location" modal without duplicating the flow.
-// LocationPermissionScreen itself is left untouched and keeps its own copy
-// of this logic inline.
-// ─────────────────────────────────────────────────────────────────────────────
 export const useDeviceLocation = (initial = {}) => {
   const { isOnline } = useNetworkStatus();
 

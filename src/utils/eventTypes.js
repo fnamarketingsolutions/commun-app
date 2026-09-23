@@ -128,3 +128,8 @@ export const getEventTypeDescription = (eventType) => {
   const resolved = resolveEventType(eventType);
   return EVENT_TYPE_DESCRIPTIONS[resolved] || '';
 };
+
+/**
+ * Hardcoded community events list (empty - real events loaded from backend)
+ */
+export const HARDCODED_COMMUNITY_EVENTS = [];

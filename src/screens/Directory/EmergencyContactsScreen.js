@@ -272,7 +272,7 @@ const EmergencyContactsScreen = ({ navigation }) => {
     let errorMessage = 'Failed to load emergency contacts';
     if (error?.data?.message) errorMessage = error.data.message;
     else if (error?.error) errorMessage = error.error;
-    else if (error?.status) errorMessage = `Server error (${error.status})`;
+    else if (error?.status) errorMessage = 'Unable to connect to server. Please try again later.';
     else if (typeof error === 'string') errorMessage = error;
 
     return (

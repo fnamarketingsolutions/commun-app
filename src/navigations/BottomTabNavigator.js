@@ -140,15 +140,6 @@ const TabBarRoute = React.memo(function TabBarRoute({
 const CustomTabBar = React.memo(function CustomTabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
 
-  // ── Hide the tab bar while the keyboard is open ─────────────────────────
-  // This bar is `position: absolute, bottom: 0` inside the navigator's
-  // container. On Android (windowSoftInputMode="adjustResize") and to a
-  // lesser degree iOS, opening the keyboard shrinks that container, and a
-  // bottom-anchored absolute view rises along with it — landing on top of
-  // the keyboard instead of hiding behind it.
-  // `tabBarHideOnKeyboard` only affects React Navigation's built-in tab bar,
-  // not a custom one rendered via `tabBar={renderTabBar}`, so we replicate
-  // that behavior manually here.
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {

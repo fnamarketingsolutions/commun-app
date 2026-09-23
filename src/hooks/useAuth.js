@@ -37,8 +37,7 @@ export const useAuth = () => {
     try {
       await logoutMutation().unwrap();
     } catch (error) {
-      // Server call failed (offline, expired token, baseURL misconfig, etc.)
-      // We still log the user out locally — never trap them in a logged-in UI.
+
     } finally {
       dispatch(clearUser());
       await clearToken();

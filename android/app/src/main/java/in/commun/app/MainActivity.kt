@@ -1,4 +1,4 @@
-package com.commun
+package `in`.commun.app
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

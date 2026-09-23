@@ -1,10 +1,10 @@
-// src/redux/service/bannerApiClient.js
+
 
 import axios from 'axios';
 import Config from 'react-native-config';
 import { saveToken, getToken } from '../../utils/tokenStorage';
 
-// Banner routes live under "/api/banners"
+
 const deriveBannerBaseUrl = (userBaseUrl) => {
   if (!userBaseUrl) return userBaseUrl;
   return userBaseUrl.replace(/\/api\/user\/?$/, '/api/banners');
@@ -27,7 +27,7 @@ bannerApiClient.interceptors.request.use(
       if (token) {
         config.headers['Cookie'] = `jwt=${token}`;
       }
-    } catch (_) {}
+    } catch (_) { }
     return config;
   },
   (error) => Promise.reject(error)
@@ -46,7 +46,7 @@ bannerApiClient.interceptors.response.use(
           await saveToken(match[1]);
         }
       }
-    } catch (_) {}
+    } catch (_) { }
     return response;
   },
   (error) => Promise.reject(error)

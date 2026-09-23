@@ -3,18 +3,23 @@ import axios from 'axios';
 import Config from 'react-native-config';
 import { saveToken, getToken, clearToken } from '../../utils/tokenStorage';
 
+
+const resolveUserApiBaseUrl = (raw) => {
+  const base = String(raw || '').replace(/\/+$/, '');
+  if (!base || /\/api\/user$/i.test(base)) return base;
+  if (/\/api$/i.test(base)) return `${base}/user`;
+  return base;
+};
+
 const apiClient = axios.create({
-  baseURL: Config.API_BASE_URL,
+  baseURL: resolveUserApiBaseUrl(Config.API_BASE_URL),
   timeout: 15000,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
-// ── REQUEST interceptor ───────────────────────────────────────────────────────
-// React Native's networking layer does NOT persist httpOnly cookies across
-// app restarts (unlike a browser). We manually read the JWT from
-// EncryptedStorage and attach it as a Cookie header on every outgoing request.
+
 apiClient.interceptors.request.use(
   async (config) => {
     try {
@@ -30,10 +35,6 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// ── RESPONSE interceptor ─────────────────────────────────────────────────────
-// • Login / register → backend sends set-cookie with the JWT → we save it
-// • Logout           → backend clears the cookie → we clear EncryptedStorage
-// This keeps EncryptedStorage perfectly in sync with the backend session.
 apiClient.interceptors.response.use(
   async (response) => {
     try {

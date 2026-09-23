@@ -5,11 +5,6 @@ import Skeleton from './Skeleton';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { moderateScale, scaleWidth, scaleHeight } from '../../utils/responsive';
 
-/**
- * PanelCardSkeleton
- * Mirrors a Community Hub panel card: icon circle, title + description
- * lines, and a chevron placeholder on the right.
- */
 export const PanelCardSkeleton = () => (
   <View style={styles.card}>
     <Skeleton width={moderateScale(52, 0.3)} height={52} borderRadius={26} style={styles.iconCircle} />
@@ -21,11 +16,7 @@ export const PanelCardSkeleton = () => (
   </View>
 );
 
-/**
- * CommunityHubSkeleton
- * Full-screen stand-in shown while the feature-toggle query is loading:
- * a subtitle line followed by a stack of PanelCardSkeleton rows.
- */
+
 export const CommunityHubSkeleton = ({ count = 5 }) => {
   const rows = new Array(count).fill(null);
   return (

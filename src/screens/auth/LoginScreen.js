@@ -28,12 +28,13 @@ import { ROUTES } from '../../navigations/routes';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { NetworkAwareView } from '../../components/NetworkAwareView';
 import GradientText from '../../components/common/GradientText';
+import CustomAlertModal from '../../components/CustomAlertModal';
 
 const MAX_FONT_SIZE_MULTIPLIER = 1.3;
 
 // ── Shared navigation helper ──────────────────────────────────────────────────
 const getRouteForUser = (user) => {
-  const role   = user?.role;
+  const role = user?.role;
   const status = user?.accountStatus || 'approved';
   if (role === 'admin' || role === 'secretary') return ROUTES.TABS;
   if (status === 'pending' || status === 'rejected') return ROUTES.PENDING;
@@ -41,9 +42,21 @@ const getRouteForUser = (user) => {
 };
 
 // ── Validation helpers ────────────────────────────────────────────────────────
+const loginErrorText = (err, fallback) => {
+  const data = err?.data;
+  let serverMessage = fallback;
+  if (typeof data === 'string' && data.trim()) serverMessage = data;
+  else if (typeof data?.message === 'string' && data.message.trim()) serverMessage = data.message;
+  else if (typeof data?.error === 'string' && data.error.trim()) serverMessage = data.error;
+  else if (typeof err?.message === 'string' && err.message.trim()) serverMessage = err.message;
+
+  const cleaned = String(serverMessage).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);
+  return cleaned || fallback;
+};
+
 const validatePhone = (phone) => /^[0-9]{10}$/.test(phone);
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-const validateOtp   = (otp)   => /^[0-9]{4,6}$/.test(otp.trim());
+const validateOtp = (otp) => /^[0-9]{4,6}$/.test(otp.trim());
 
 // ─────────────────────────────────────────────────────────────────────────────
 const LoginScreen = ({ navigation }) => {
@@ -51,20 +64,30 @@ const LoginScreen = ({ navigation }) => {
   const [loginMethod, setLoginMethod] = useState('phone');
 
   // ── Phone OTP state ───────────────────────────────────────────────────────
-  const [phone, setPhone]     = useState('');
+  const [phone, setPhone] = useState('');
   const [otpStep, setOtpStep] = useState(false);
-  const [otp, setOtp]         = useState('');
+  const [otp, setOtp] = useState('');
+  const [resendSeconds, setResendSeconds] = useState(0);
+
+  // ── Resend countdown ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const t = setInterval(() => {
+      setResendSeconds((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [resendSeconds]);
 
   // ── Email/password state ──────────────────────────────────────────────────
-  const [email, setEmail]           = useState('');
-  const [password, setPassword]     = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPass] = useState(false);
 
   const [focusedField, setFocused] = useState(null);
 
   // ── RTK Query mutations ───────────────────────────────────────────────────
-  const [login,          { isLoading: isEmailLoading }] = useLoginMutation();
-  const [sendLoginOtp,   { isLoading: isSendingOtp }]   = useSendLoginOtpMutation();
+  const [login, { isLoading: isEmailLoading }] = useLoginMutation();
+  const [sendLoginOtp, { isLoading: isSendingOtp }] = useSendLoginOtpMutation();
   const [verifyLoginOtp, { isLoading: isVerifyingOtp }] = useVerifyLoginOtpMutation();
 
   const isLoading = isEmailLoading || isSendingOtp || isVerifyingOtp;
@@ -94,12 +117,29 @@ const LoginScreen = ({ navigation }) => {
     };
   }, [clearDebounce]);
 
+  // ── Alert Modal state ─────────────────────────────────────────────────────
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error',
+  });
+
+  const showAlert = useCallback((title, message, type = 'error') => {
+    setAlertConfig({ visible: true, title, message, type });
+  }, []);
+
+  const hideAlert = useCallback(() => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  }, []);
+
   // ── Switch method ─────────────────────────────────────────────────────────
   const switchToPhone = useCallback(() => {
     clearDebounce();
     setLoginMethod('phone');
     setOtpStep(false);
     setOtp('');
+    setResendSeconds(0);
     setFocused(null);
   }, [clearDebounce]);
 
@@ -107,6 +147,7 @@ const LoginScreen = ({ navigation }) => {
     clearDebounce();
     setLoginMethod('email');
     setOtpStep(false);
+    setResendSeconds(0);
     setFocused(null);
   }, [clearDebounce]);
 
@@ -115,7 +156,7 @@ const LoginScreen = ({ navigation }) => {
     clearDebounce();
     const digits = phone.replace(/\D/g, '');
     if (!validatePhone(digits)) {
-      Alert.alert('Invalid Number', 'Please enter a valid 10‑digit phone number.');
+      showAlert('Invalid Number', 'Please enter a valid 10‑digit phone number.', 'warning');
       return;
     }
     debounceTimer.current = setTimeout(async () => {
@@ -123,21 +164,21 @@ const LoginScreen = ({ navigation }) => {
         await sendLoginOtp({ phoneNumber: digits }).unwrap();
         setOtpStep(true);
         setOtp('');
+        setResendSeconds(30);
       } catch (err) {
-        const msg = err?.data?.message || err?.message || 'Could not send OTP. Please try again.';
-        Alert.alert('Unable to send OTP', msg);
+        showAlert('Unable to send OTP', loginErrorText(err, 'Could not send OTP. Please try again.'), 'error');
       } finally {
         debounceTimer.current = null;
       }
     }, 300);
-  }, [phone, sendLoginOtp, clearDebounce]);
+  }, [phone, sendLoginOtp, clearDebounce, showAlert]);
 
   const handleVerifyOtp = useCallback(() => {
     clearDebounce();
     const digits = phone.replace(/\D/g, '');
-    const code   = otp.trim();
+    const code = otp.trim();
     if (!validateOtp(code)) {
-      Alert.alert('Invalid OTP', 'Please enter the 6 digit OTP sent to your phone.');
+      showAlert('Invalid OTP', 'Please enter the 6 digit OTP sent to your phone.', 'warning');
       return;
     }
     debounceTimer.current = setTimeout(async () => {
@@ -146,25 +187,24 @@ const LoginScreen = ({ navigation }) => {
         const route = getRouteForUser(result?.user);
         navigation.replace(route);
       } catch (err) {
-        const msg = err?.data?.message || err?.message || 'Invalid or expired OTP. Please try again.';
-        Alert.alert('Verification failed', msg);
+        showAlert('Verification failed', loginErrorText(err, 'Invalid or expired OTP. Please try again.'), 'error');
       } finally {
         debounceTimer.current = null;
       }
     }, 300);
-  }, [phone, otp, verifyLoginOtp, navigation, clearDebounce]);
+  }, [phone, otp, verifyLoginOtp, navigation, clearDebounce, showAlert]);
 
   // ── Email login handler ───────────────────────────────────────────────────
   const handleEmailSignIn = useCallback(() => {
     clearDebounce();
     const emailTrim = email.trim();
-    const pass      = password.trim();
+    const pass = password.trim();
     if (!validateEmail(emailTrim)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      showAlert('Invalid Email', 'Please enter a valid email address.', 'warning');
       return;
     }
     if (pass.length < 8) {
-      Alert.alert('Invalid Password', 'Password must be at least 8 characters.');
+      showAlert('Invalid Password', 'Password must be at least 8 characters.', 'warning');
       return;
     }
     debounceTimer.current = setTimeout(async () => {
@@ -173,20 +213,12 @@ const LoginScreen = ({ navigation }) => {
         const route = getRouteForUser(result?.user);
         navigation.replace(route);
       } catch (err) {
-        let msg = 'Invalid email or password. Please try again.';
-        if (err?.data?.message) {
-          msg = err.data.message;
-        } else if (err?.message) {
-          msg = err.message;
-        } else if (typeof err === 'string') {
-          msg = err;
-        }
-        Alert.alert('Sign in failed', msg);
+        showAlert('Sign in failed', loginErrorText(err, 'Invalid email or password. Please try again.'), 'error');
       } finally {
         debounceTimer.current = null;
       }
     }, 300);
-  }, [email, password, login, navigation, clearDebounce]);
+  }, [email, password, login, navigation, clearDebounce, showAlert]);
 
   // ── Scroll the password field above the keyboard when it's focused ────────
   const handlePasswordFocus = useCallback(() => {
@@ -346,7 +378,7 @@ const LoginScreen = ({ navigation }) => {
 
                       <View style={styles.otpActions}>
                         <TouchableOpacity
-                          onPress={() => { setOtpStep(false); setOtp(''); }}
+                          onPress={() => { setOtpStep(false); setOtp(''); setResendSeconds(0); }}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           disabled={isLoading}
                         >
@@ -361,15 +393,21 @@ const LoginScreen = ({ navigation }) => {
                         <TouchableOpacity
                           onPress={handleSendOtp}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          disabled={isLoading || !isOnline}
+                          disabled={isLoading || !isOnline || resendSeconds > 0}
                         >
-                          <GradientText
-                            colors={gradientColors}
-                            style={styles.otpActionLink}
-                            maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
-                          >
-                            Resend OTP
-                          </GradientText>
+                          {resendSeconds > 0 ? (
+                            <Text style={styles.otpActionDisabled} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
+                              Resend OTP in {resendSeconds}s
+                            </Text>
+                          ) : (
+                            <GradientText
+                              colors={gradientColors}
+                              style={styles.otpActionLink}
+                              maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
+                            >
+                              Resend OTP
+                            </GradientText>
+                          )}
                         </TouchableOpacity>
                       </View>
 
@@ -578,6 +616,15 @@ const LoginScreen = ({ navigation }) => {
           </NetworkAwareView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* ── Beautiful Themed Alert Modal ── */}
+      <CustomAlertModal
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={hideAlert}
+      />
     </GestureHandlerRootView>
   );
 };
@@ -727,6 +774,11 @@ const styles = StyleSheet.create({
   otpActionLink: {
     fontSize: scaleFont(FONTS.link) - 1,
     fontWeight: FONTS.weightSemiBold,
+  },
+  otpActionDisabled: {
+    fontSize: scaleFont(FONTS.link) - 1,
+    fontWeight: FONTS.weightMedium,
+    color: COLORS.textMuted,
   },
   toggleMethodBtn: {
     alignSelf: 'center',

@@ -656,7 +656,7 @@ const BecomeProviderScreen = ({ navigation }) => {
         if (status === 401 || status === 403) message = 'Your session has expired. Please log in again.';
         else if (status === 409) message = serverMsg || 'You already have a pending provider application.';
         else if (status >= 500) message = 'Server error. Please try again later.';
-        else message = serverMsg || `Request failed (${status}).`;
+        else message = serverMsg || 'Unable to submit request. Please try again.';
       } else if (error?.request) {
         message = 'No response from server. Please check your internet connection and try again.';
       } else if (error?.message) {

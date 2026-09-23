@@ -5,11 +5,7 @@ import Skeleton from './Skeleton';
 import { COLORS, SHADOW } from '../../theme';
 import { moderateScale, scaleWidth, scaleHeight } from '../../utils/responsive';
 
-/**
- * MemberCardSkeleton
- * Mirrors DirectoryScreen's MemberCard: avatar circle, name + role lines,
- * and a couple of small action-icon placeholders on the right.
- */
+
 export const MemberCardSkeleton = () => (
   <View style={styles.card}>
     <Skeleton width={moderateScale(48, 0.3)} height={48} borderRadius={24} style={styles.avatar} />
@@ -24,11 +20,7 @@ export const MemberCardSkeleton = () => (
   </View>
 );
 
-/**
- * DirectoryListSkeleton
- * A full-screen stand-in for the members FlatList while the first page
- * of data is loading — a stack of MemberCardSkeleton rows.
- */
+
 export const DirectoryListSkeleton = ({ count = 8 }) => {
   const rows = new Array(count).fill(null);
   return (

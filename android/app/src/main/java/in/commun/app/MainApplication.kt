@@ -1,4 +1,4 @@
-package com.commun
+package `in`.commun.app
 
 import android.app.Application
 import com.facebook.react.PackageList

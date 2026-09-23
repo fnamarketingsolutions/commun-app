@@ -413,8 +413,8 @@ const ProfileInfoScreen = ({ navigation }) => {
             <View style={styles.rowDivider} />
             <MenuRow
               icon={<MaterialIcon name="lock-outline" size={scaleFont(18)} color={isOnline ? COLORS.gradientStart : COLORS.textMuted} />}
-              label="Security & Password"
-              subtitle="Change password, manage security"
+              label="Password & Security"
+              subtitle="Change password, manage security & delete account"
               onPress={() => navigation?.navigate('Security')}
               disabled={!isOnline}
             />

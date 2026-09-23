@@ -1,5 +1,4 @@
-// screens/ProviderEventsScreen.jsx
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -347,9 +346,13 @@ const ProviderEventsScreen = () => {
     lastFetchTime.current = Date.now();
   }, [refetch, isOnline]);
 
-  const events = data?.data?.events || [];
+  const serverEvents = data?.data?.events || [];
   const meta = data?.data || {};
   const canCreate = meta.hasCommunity && meta.eventsEnabled;
+
+  const events = useMemo(() => {
+    return serverEvents;
+  }, [serverEvents]);
 
   const handleCreateEvent = useCallback(
     async ({ title, description, expiresAt, files, attachmentLinks, eventType }) => {

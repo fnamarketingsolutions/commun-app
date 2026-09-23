@@ -51,10 +51,7 @@ const getRouteFromTag = (tag) => {
     return { routeName: ROUTES.PROVIDER_EVENTS, params: eventId ? { eventId } : undefined };
   }
 
-  // Backend sends `broadcast-{broadcastId}`, never a bare "broadcast".
-  // ROUTES.BROADCAST ('BroadcastMessage') is the secretary/provider COMPOSER
-  // screen — a regular member tapping a broadcast notification should land
-  // on the broadcasts list/detail instead, so this uses ROUTES.PROVIDER_BROADCAST.
+
   if (tag.startsWith('broadcast-')) {
     const broadcastId = tag.slice('broadcast-'.length);
     return { routeName: ROUTES.PROVIDER_BROADCAST, params: broadcastId ? { broadcastId } : undefined };
@@ -155,7 +152,7 @@ export function useFCM(navigationRef) {
     // ── Teardown ──────────────────────────────────────────────────────────
     const teardown = async () => {
       unsubscribersRef.current.forEach((unsub) => {
-        try { unsub(); } catch (_) {}
+        try { unsub(); } catch (_) { }
       });
       unsubscribersRef.current = [];
 
@@ -163,8 +160,8 @@ export function useFCM(navigationRef) {
       tokenRef.current = null;
       if (!token) return;
 
-      try { await unregisterMobilePush({ token }).unwrap(); } catch (_) {}
-      try { await deleteToken(messaging); } catch (_) {}
+      try { await unregisterMobilePush({ token }).unwrap(); } catch (_) { }
+      try { await deleteToken(messaging); } catch (_) { }
     };
 
     // ── Setup ─────────────────────────────────────────────────────────────
@@ -191,7 +188,7 @@ export function useFCM(navigationRef) {
         await registerMobilePush({
           token,
           platform: Platform.OS,
-          appId: 'com.commun',
+          appId: 'in.commun.app',
           deviceId: '',
         }).unwrap();
         tokenRef.current = token;
@@ -204,17 +201,17 @@ export function useFCM(navigationRef) {
       const tokenRefreshUnsub = onTokenRefresh(messaging, async (newToken) => {
         const oldToken = tokenRef.current;
         if (oldToken) {
-          try { await unregisterMobilePush({ token: oldToken }).unwrap(); } catch (_) {}
+          try { await unregisterMobilePush({ token: oldToken }).unwrap(); } catch (_) { }
         }
         try {
           await registerMobilePush({
             token: newToken,
             platform: Platform.OS,
-            appId: 'com.commun',
+            appId: 'in.commun.app',
             deviceId: '',
           }).unwrap();
           tokenRef.current = newToken;
-        } catch (_) {}
+        } catch (_) { }
       });
       unsubscribersRef.current.push(tokenRefreshUnsub);
 
@@ -241,17 +238,17 @@ export function useFCM(navigationRef) {
           dispatch(addNotification(notification));
           handleNotificationPress(initialMessage);
         }
-      } catch (_) {}
+      } catch (_) { }
     };
 
     timerHandle = setTimeout(() => {
-      setup().catch(() => {});
+      setup().catch(() => { });
     }, 1500);
 
     return () => {
       isActive = false;
       if (timerHandle) clearTimeout(timerHandle);
-      teardown().catch(() => {});
+      teardown().catch(() => { });
     };
   }, [isLoggedIn, handleNotificationPress, registerMobilePush, unregisterMobilePush, dispatch]);
 }
