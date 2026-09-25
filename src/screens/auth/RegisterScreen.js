@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   Dimensions,
+  useWindowDimensions,
   Modal,
   Alert,
   ActivityIndicator,
@@ -87,6 +88,9 @@ const progress = StyleSheet.create({
 const RegisterScreen = ({ navigation }) => {
   const { isOnline } = useNetworkStatus();
   const dispatch = useDispatch(); // ✅ Added
+  // R1 FIX: Reactive dimensions — updates on orientation/fold
+  const { width }  = useWindowDimensions();
+  const isSmall    = width < 360;
 
   // ── Current wizard step (1-5) ────────────────────────────────────────────
   const [step, setStep] = useState(1);
@@ -1185,9 +1189,9 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: Platform.OS === 'ios' ? 'flex-start' : 'center',
     paddingHorizontal: scaleWidth(20),
-    paddingVertical: scaleHeight(14),
+    paddingVertical: Platform.OS === 'ios' ? scaleHeight(20) : scaleHeight(14),
   },
 
   backBtn: {
@@ -1377,12 +1381,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
+    ...(Platform.OS === 'ios'
+      ? {
+        minHeight: moderateScale(50, 0.2),
+        overflow: 'hidden',
+      }
+      : {}),
   },
   btnText: {
     fontSize: scaleFont(FONTS.button + 1),
     fontWeight: FONTS.weightBold,
     color: COLORS.white,
     letterSpacing: moderateScale(0.3),
+    ...(Platform.OS === 'ios' ? { lineHeight: moderateScale(22, 0.2) } : {}),
   },
 
   footer: {

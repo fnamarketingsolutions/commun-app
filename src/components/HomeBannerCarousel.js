@@ -1,26 +1,34 @@
 // src/components/HomeBannerCarousel.js
+// BC1 FIX: BANNER_HEIGHT and SLIDE_WIDTH are now computed inside the component
+//          using useWindowDimensions() so they update on orientation/fold changes.
+// BC2 FIX: getItemLayout now uses the reactive SLIDE_WIDTH.
+// BC3:     Tablet gets a taller banner for better visual impact.
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   Image,
-  Dimensions,
   TouchableOpacity,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 import { moderateScale, scaleWidth, scaleHeight } from '../utils/responsive';
-
-const { width } = Dimensions.get('window');
-const BANNER_HEIGHT = moderateScale(200, 0.3);
-const SLIDE_WIDTH = width - scaleWidth(36); // 18px padding each side
+import { BREAKPOINTS } from '../utils/breakpoints';
 
 const HomeBannerCarousel = ({ banners = [], isLoading = false, isError = false }) => {
+  // BC1: Reactive dimensions — updates when device rotates or folds
+  const { width } = useWindowDimensions();
+  const isTablet  = width >= BREAKPOINTS.TABLET;
+
+  const BANNER_HEIGHT = isTablet ? moderateScale(280, 0.3) : moderateScale(200, 0.3);
+  const SLIDE_WIDTH   = width - scaleWidth(36); // 18px padding each side
+
   const [activeIndex, setActiveIndex] = useState(0);
-  const flatListRef = useRef(null);
+  const flatListRef  = useRef(null);
 
   // Auto‑scroll every 4 seconds
   useEffect(() => {
@@ -35,14 +43,50 @@ const HomeBannerCarousel = ({ banners = [], isLoading = false, isError = false }
     return () => clearInterval(interval);
   }, [banners.length]);
 
-  const onScroll = (event) => {
-    const index = Math.round(event.nativeEvent.contentOffset.x / SLIDE_WIDTH);
-    if (index !== activeIndex) setActiveIndex(index);
-  };
+  const onScroll = useCallback(
+    (event) => {
+      const index = Math.round(event.nativeEvent.contentOffset.x / SLIDE_WIDTH);
+      if (index !== activeIndex) setActiveIndex(index);
+    },
+    [SLIDE_WIDTH, activeIndex],
+  );
+
+  // BC2: getItemLayout uses the reactive SLIDE_WIDTH
+  const getItemLayout = useCallback(
+    (_, index) => ({ length: SLIDE_WIDTH, offset: SLIDE_WIDTH * index, index }),
+    [SLIDE_WIDTH],
+  );
+
+  const renderItem = useCallback(
+    ({ item }) => (
+      <TouchableOpacity
+        style={[
+          styles.slideWrap,
+          {
+            width: SLIDE_WIDTH,
+            height: BANNER_HEIGHT,
+          },
+        ]}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={styles.bannerImage}
+          resizeMode="cover"
+        />
+      </TouchableOpacity>
+    ),
+    [SLIDE_WIDTH, BANNER_HEIGHT],
+  );
 
   if (isLoading) {
     return (
-      <View style={[styles.wrapper, styles.loadingWrapper]}>
+      <View
+        style={[
+          styles.loadingWrapper,
+          { width, height: BANNER_HEIGHT, marginBottom: scaleHeight(8) },
+        ]}
+      >
         <ActivityIndicator size="small" color={COLORS.gradientStart} />
       </View>
     );
@@ -53,7 +97,12 @@ const HomeBannerCarousel = ({ banners = [], isLoading = false, isError = false }
   }
 
   return (
-    <View style={styles.wrapper}>
+    <View
+      style={[
+        styles.wrapper,
+        { width, height: BANNER_HEIGHT + scaleHeight(16) },
+      ]}
+    >
       <FlatList
         ref={flatListRef}
         data={banners}
@@ -61,24 +110,9 @@ const HomeBannerCarousel = ({ banners = [], isLoading = false, isError = false }
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item._id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.slideWrap}
-            activeOpacity={0.9}
-          >
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={styles.bannerImage}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
-        )}
+        renderItem={renderItem}
         onMomentumScrollEnd={onScroll}
-        getItemLayout={(_, index) => ({
-          length: SLIDE_WIDTH,
-          offset: SLIDE_WIDTH * index,
-          index,
-        })}
+        getItemLayout={getItemLayout}
       />
 
       {banners.length > 1 && (
@@ -100,21 +134,17 @@ const HomeBannerCarousel = ({ banners = [], isLoading = false, isError = false }
 
 const styles = StyleSheet.create({
   wrapper: {
-    width: width,
-    height: BANNER_HEIGHT + scaleHeight(16), // space for dots
     marginBottom: scaleHeight(8),
     paddingHorizontal: scaleWidth(18),
   },
   loadingWrapper: {
-    height: BANNER_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: scaleWidth(18),
     backgroundColor: COLORS.inputBg,
     borderRadius: moderateScale(RADIUS.md, 0.3),
   },
   slideWrap: {
-    width: SLIDE_WIDTH,
-    height: BANNER_HEIGHT,
     borderRadius: moderateScale(20, 0.3),
     overflow: 'hidden',
     ...SHADOW.card,

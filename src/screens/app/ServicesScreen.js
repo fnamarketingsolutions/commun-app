@@ -7,7 +7,7 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   StatusBar,
   ActivityIndicator,
   RefreshControl,
@@ -27,7 +27,7 @@ import {
   useRemoveFromWishlistMutation,
 } from '../../redux/service/api';
 
-import { COLORS, FONTS, RADIUS } from '../../theme';
+import { COLORS, FONTS, RADIUS, MAX_FONT_SCALE } from '../../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../../utils/responsive';
 import { ServiceGridCard } from '../../components/SharedCards';
 import SearchHeader from '../../components/SearchHeader';
@@ -39,10 +39,9 @@ import { isCommunityPending } from '../../utils/communityStatus';
 import { getUserCommunityName } from '../../utils/communityHelpers';
 import { ServicesGridSkeleton } from '../../components/common/HomeSkeletons';
 
-const { width } = Dimensions.get('window');
-const MAX_FONT_SIZE_MULTIPLIER = 1.3;
-
-const GRID_WIDTH = (width - moderateScale(52, 0.3)) / 2;
+// SV1 FIX: width and GRID_WIDTH moved inside component (see below).
+// SV2: Tablet gets 3-column grid; phones keep 2-column.
+const MAX_FONT_SIZE_MULTIPLIER = MAX_FONT_SCALE; // sourced from theme
 const PAGE_LIMIT = 50;
 const MIN_SKELETON_DISPLAY_MS = 300;
 
@@ -79,6 +78,16 @@ const mapProviderForCard = (provider) => {
 
 const ServicesScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  // SV1 FIX: Reactive dimensions — updates on orientation/fold/split-screen
+  const { width } = useWindowDimensions();
+  const isTablet    = width >= 768;
+  const COLUMNS     = isTablet ? 3 : 2;
+  // Horizontal padding: 26 each side on phone, 24 each side on tablet
+  const H_PAD       = isTablet ? 24 : 26;
+  const GAP         = 12;
+  // SV2: 3-col grid on tablet, 2-col on phone
+  const GRID_WIDTH  = (width - H_PAD * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
+
   const route = useRoute();
   const initialCategory = route?.params?.filterCategory;
 

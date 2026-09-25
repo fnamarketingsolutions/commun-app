@@ -1,17 +1,17 @@
 // components/common/HomeSkeletons.jsx
 import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import Skeleton from './Skeleton';
 import { COLORS, SHADOW } from '../../theme';
 import { moderateScale, scaleWidth, scaleHeight } from '../../utils/responsive';
 
-const { width } = Dimensions.get('window');
-const BANNER_HEIGHT = moderateScale(200, 0.3);
-const SLIDE_WIDTH = width - scaleWidth(36); // 18px padding each side
-const GRID_WIDTH = (width - moderateScale(52, 0.3)) / 2;
+// A5 FIX: All static dimension constants removed.
+// Each skeleton component now calls useWindowDimensions() for reactive values.
 
 // ── Banner Carousel Skeleton ────────────────────────────────────────────────
 export const BannerCarouselSkeleton = () => {
+  const { width } = useWindowDimensions();
+  const BANNER_HEIGHT = moderateScale(200, 0.3);
   return (
     <View style={styles.bannerWrapper}>
       <View style={styles.bannerSlide}>
@@ -112,6 +112,9 @@ export const RecentServicesSkeleton = () => {
 // ─── Services Grid Skeleton ────────────────────────────────────────────────
 export const ServicesGridSkeleton = () => {
   const items = new Array(6).fill(null); // 3 rows x 2 columns
+  // A5 FIX: Reactive GRID_WIDTH
+  const { width } = useWindowDimensions();
+  const GRID_WIDTH = (width - moderateScale(52, 0.3)) / 2;
   return (
     <View style={styles.servicesGrid}>
       {items.map((_, i) => (
@@ -126,15 +129,15 @@ export const ServicesGridSkeleton = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   // Banner skeleton
   bannerWrapper: {
     marginBottom: scaleHeight(12),
     paddingHorizontal: scaleWidth(18),
   },
+  // A5 FIX: Inline width so it reacts to orientation
   bannerSlide: {
-    width: SLIDE_WIDTH,
-    height: BANNER_HEIGHT,
     borderRadius: moderateScale(20, 0.3),
     overflow: 'hidden',
     backgroundColor: COLORS.inputBg,

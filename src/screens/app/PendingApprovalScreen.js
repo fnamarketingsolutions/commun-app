@@ -317,7 +317,7 @@ const PendingApprovalScreen = ({ navigation }) => {
         type="warning"
         title="Sign Out"
         message="Are you sure you want to sign out?"
-        primaryButtonText="Yes, Sign Out"
+        primaryButtonText="Sign Out"
         secondaryButtonText="Cancel"
         onPrimaryPress={confirmLogout}
         onSecondaryPress={() => setShowLogoutModal(false)}

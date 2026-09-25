@@ -5,6 +5,7 @@ import Geolocation from 'react-native-geolocation-service';
 import Geocoder from 'react-native-geocoder-reborn';
 
 import { useNetworkStatus } from './useNetworkStatus';
+import { addressFromPlacemark, logLocationOnScreen } from '../utils/placemarkAddress';
 
 export const useDeviceLocation = (initial = {}) => {
   const { isOnline } = useNetworkStatus();
@@ -42,15 +43,12 @@ export const useDeviceLocation = (initial = {}) => {
       const results = await Geocoder.geocodePosition({ lat, lng });
       if (!isMounted.current) return;
       if (results && results.length > 0) {
-        const result = results[0];
-        setAddressLine1(
-          result.streetNumber
-            ? `${result.streetNumber} ${result.streetName}`
-            : result.streetName || result.formattedAddress || ''
-        );
-        setCity(result.locality || result.subAdministrativeArea || '');
-        setState(result.administrativeArea || '');
-        setZip(result.postalCode || '');
+        const address = addressFromPlacemark(results[0]);
+        logLocationOnScreen({ latitude: lat, longitude: lng, raw: results[0], address });
+        setAddressLine1(address.addressLine1);
+        setCity(address.city);
+        setState(address.state);
+        setZip(address.zip);
         setLocationError(null);
       } else {
         setLocationError('Could not find address for this location.');
@@ -94,8 +92,15 @@ export const useDeviceLocation = (initial = {}) => {
         );
         hasPermission = granted === PermissionsAndroid.RESULTS.GRANTED;
       } else {
-        const permission = await Geolocation.requestPermission('whenInUse');
+        // This library's iOS method is requestAuthorization. requestPermission
+        // does not exist, so the call threw and every tap showed the settings error.
+        const permission = await Geolocation.requestAuthorization('whenInUse');
         hasPermission = permission === 'granted';
+        if (permission === 'disabled' && isMounted.current) {
+          setLocationError('Location services are turned off. Please check your settings.');
+          setIsLocating(false);
+          return;
+        }
       }
 
       if (!hasPermission) {
@@ -106,30 +111,44 @@ export const useDeviceLocation = (initial = {}) => {
         return;
       }
 
-      Geolocation.getCurrentPosition(
-        (position) => {
-          if (!isMounted.current) return;
-          const { latitude, longitude } = position.coords;
-          reverseGeocode(latitude, longitude);
-        },
-        (error) => {
-          console.warn('Location error:', error);
-          if (!isMounted.current) return;
-          let message = 'Unable to get your location.';
-          if (error.code === 1) message = 'Permission denied. Please enable location in settings.';
-          else if (error.code === 2) message = 'Location unavailable. Please turn on GPS.';
-          else if (error.code === 3) message = 'Location request timed out. Please try again.';
-          setLocationError(message);
-          setIsLocating(false);
-        },
-        { enableHighAccuracy: true, timeout: 15000 }
-      );
-    } catch (err) {
-      ('Location request error:', err);
-      if (isMounted.current) {
-        setLocationError('Unable to access location services. Please check your settings.');
-        setIsLocating(false);
+      const readPosition = (enableHighAccuracy) => new Promise((resolve, reject) => {
+        Geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy,
+            timeout: 20000,
+            maximumAge: 0,
+            distanceFilter: 0,
+            accuracy: { ios: 'best', android: 'high' },
+          },
+        );
+      });
+
+      let position;
+      try {
+        position = await readPosition(true);
+      } catch (error) {
+        // Simulator and indoor GPS often have no precise fix. A coarse reading still fills the address.
+        if (error?.code === 2 || error?.code === 3) {
+          position = await readPosition(false);
+        } else {
+          throw error;
+        }
       }
+
+      if (!isMounted.current) return;
+      const { latitude, longitude } = position.coords;
+      reverseGeocode(latitude, longitude);
+    } catch (err) {
+      console.warn('Location request error:', err);
+      if (!isMounted.current) return;
+      let message = 'Unable to access location services. Please check your settings.';
+      if (err?.code === 1) message = 'Permission denied. Please enable location in settings.';
+      else if (err?.code === 2) message = 'Location unavailable. Please turn on GPS.';
+      else if (err?.code === 3) message = 'Location request timed out. Please try again.';
+      setLocationError(message);
+      setIsLocating(false);
     }
   }, [isOnline, isLocating, reverseGeocode]);
 

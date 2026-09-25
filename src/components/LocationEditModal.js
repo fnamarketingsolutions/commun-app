@@ -19,15 +19,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS, FONTS, RADIUS, SHADOW } from '../theme';
 import { scaleWidth, scaleHeight, scaleFont, moderateScale } from '../utils/responsive';
+import { useTabBarHeight } from '../navigations/BottomTabNavigator';
 import { useUpdateProfileMutation } from '../redux/service/api';
 import { useDeviceLocation } from '../hooks/useDeviceLocation';
 import { setUser } from '../redux/slices/authSlice';
 
 const MAX_FONT = 1.3;
-const BOTTOM_TAB_HEIGHT = moderateScale(70, 0.3);
+// LM1 FIX: BOTTOM_TAB_HEIGHT is now computed from useTabBarHeight() inside the
+// component, replacing the previous hardcoded moderateScale(70, 0.3).
 
 const LocationEditModal = ({ visible, onClose }) => {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight(); // LM1: reactive tab bar height
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const [updateProfile, { isLoading }] = useUpdateProfileMutation();
@@ -73,16 +76,16 @@ const LocationEditModal = ({ visible, onClose }) => {
       return;
     }
     if (!addressLine1.trim()) { Alert.alert('Address Required', 'Please enter your street address.'); return; }
-    if (!city.trim())         { Alert.alert('City Required',    'Please enter your city.');           return; }
-    if (!state.trim())        { Alert.alert('State Required',   'Please enter your state.');          return; }
-    if (!zip.trim())          { Alert.alert('Zip Code Required','Please enter your zip code.');       return; }
+    if (!city.trim()) { Alert.alert('City Required', 'Please enter your city.'); return; }
+    if (!state.trim()) { Alert.alert('State Required', 'Please enter your state.'); return; }
+    if (!zip.trim()) { Alert.alert('Zip Code Required', 'Please enter your zip code.'); return; }
 
     const formData = new FormData();
     formData.append('addressLine1', addressLine1.trim());
-    formData.append('city',         city.trim());
-    formData.append('state',        state.trim());
-    formData.append('zip',          zip.trim());
-    formData.append('flatNumber',   flatNumber.trim());
+    formData.append('city', city.trim());
+    formData.append('state', state.trim());
+    formData.append('zip', zip.trim());
+    formData.append('flatNumber', flatNumber.trim());
 
     try {
       const result = await updateProfile(formData).unwrap();
@@ -110,7 +113,7 @@ const LocationEditModal = ({ visible, onClose }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.sheetWrap}
         >
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + BOTTOM_TAB_HEIGHT + scaleHeight(16) }]}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + tabBarHeight + scaleHeight(16) }]}>
             <View style={styles.grabber} />
 
             <View style={styles.sheetHeader}>
@@ -127,7 +130,7 @@ const LocationEditModal = ({ visible, onClose }) => {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={[
                 styles.scrollContent,
-                { paddingBottom: BOTTOM_TAB_HEIGHT + scaleHeight(16) },
+                { paddingBottom: tabBarHeight + scaleHeight(16) },
               ]}
             >
               {/* ── Use current location ── */}
@@ -214,42 +217,37 @@ const LocationEditModal = ({ visible, onClose }) => {
                 />
               </View>
 
-              <View style={styles.row}>
-                <View style={styles.halfField}>
-                  <Text style={styles.label} maxFontSizeMultiplier={MAX_FONT}>City *</Text>
-                  <View style={styles.inputField}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Mumbai"
-                      placeholderTextColor={COLORS.textMuted}
-                      value={city}
-                      onChangeText={setCity}
-                      editable={isOnline}
-                      maxFontSizeMultiplier={MAX_FONT}
-                    />
-                  </View>
-                </View>
-                <View style={styles.halfField}>
-                  <Text style={styles.label} maxFontSizeMultiplier={MAX_FONT}>State *</Text>
-                  <View style={styles.inputField}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Maharashtra"
-                      placeholderTextColor={COLORS.textMuted}
-                      value={state}
-                      onChangeText={setState}
-                      editable={isOnline}
-                      maxFontSizeMultiplier={MAX_FONT}
-                    />
-                  </View>
-                </View>
+              <Text style={styles.label} maxFontSizeMultiplier={MAX_FONT}>City *</Text>
+              <View style={styles.inputField}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="City"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={city}
+                  onChangeText={setCity}
+                  editable={isOnline}
+                  maxFontSizeMultiplier={MAX_FONT}
+                />
+              </View>
+
+              <Text style={styles.label} maxFontSizeMultiplier={MAX_FONT}>State *</Text>
+              <View style={styles.inputField}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="State"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={state}
+                  onChangeText={setState}
+                  editable={isOnline}
+                  maxFontSizeMultiplier={MAX_FONT}
+                />
               </View>
 
               <Text style={styles.label} maxFontSizeMultiplier={MAX_FONT}>Zip Code *</Text>
               <View style={styles.inputField}>
                 <TextInput
                   style={styles.input}
-                  placeholder="400001"
+                  placeholder="PIN code"
                   placeholderTextColor={COLORS.textMuted}
                   value={zip}
                   onChangeText={setZip}
@@ -330,7 +328,7 @@ const styles = StyleSheet.create({
   // ── Locate button ──
   locateBtn: {
     borderRadius: moderateScale(RADIUS.lg, 0.2),
-    overflow: 'hidden',
+    ...(Platform.OS === 'android' ? { overflow: 'hidden' } : {}),
     marginBottom: scaleHeight(10),
     ...SHADOW.button,
   },
@@ -339,12 +337,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: moderateScale(13, 0.2),
+    ...(Platform.OS === 'ios'
+      ? {
+        minHeight: moderateScale(48, 0.2),
+        borderRadius: moderateScale(RADIUS.lg, 0.2),
+        overflow: 'hidden',
+      }
+      : {}),
     gap: moderateScale(8),
   },
   locateBtnText: {
     fontSize: scaleFont(FONTS.button - 1),
     fontWeight: FONTS.weightBold,
     color: COLORS.white,
+    ...(Platform.OS === 'ios' ? { lineHeight: moderateScale(20, 0.2) } : {}),
   },
 
   // ── Errors ──
@@ -414,6 +420,7 @@ const styles = StyleSheet.create({
     fontSize: scaleFont(FONTS.input),
     color: COLORS.textPrimary,
     padding: 0,
+    ...(Platform.OS === 'ios' ? { letterSpacing: 0 } : {}),
   },
   row: {
     flexDirection: 'row',
@@ -431,12 +438,19 @@ const styles = StyleSheet.create({
     paddingVertical: moderateScale(14, 0.2),
     alignItems: 'center',
     justifyContent: 'center',
+    ...(Platform.OS === 'ios'
+      ? {
+        minHeight: moderateScale(50, 0.2),
+        overflow: 'hidden',
+      }
+      : {}),
   },
   saveBtnText: {
     fontSize: scaleFont(FONTS.button + 1),
     fontWeight: FONTS.weightBold,
     color: COLORS.white,
     letterSpacing: moderateScale(0.3),
+    ...(Platform.OS === 'ios' ? { lineHeight: moderateScale(22, 0.2) } : {}),
   },
 });
 

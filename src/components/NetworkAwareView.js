@@ -3,7 +3,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { COLORS, FONTS, SPACING, SHADOW } from '../theme';
+import { COLORS, FONTS, SPACING, SHADOW, MAX_FONT_SCALE } from '../theme';
+import { scaleFont } from '../utils/responsive';
 
 export const NetworkAwareView = ({
   children,
@@ -23,8 +24,8 @@ export const NetworkAwareView = ({
         end={{ x: 1, y: 0 }}
         style={styles.banner}
       >
-        <Icon name="wifi-off" size={18} color={COLORS.white} style={styles.icon} />
-        <Text style={styles.bannerText}>{message}</Text>
+        <Icon name="wifi-off" size={scaleFont(18)} color={COLORS.white} style={styles.icon} />
+        <Text style={styles.bannerText} maxFontSizeMultiplier={MAX_FONT_SCALE}>{message}</Text>
       </LinearGradient>
       {children}
     </View>
@@ -48,7 +49,8 @@ const styles = StyleSheet.create({
   icon: { marginRight: SPACING.sm },
   bannerText: {
     color: COLORS.white,
-    fontSize: FONTS.small,
+    // NW1 FIX: was FONTS.small (raw 12) — now uses scaleFont() for density-aware sizing
+    fontSize: scaleFont(FONTS.small),
     fontWeight: FONTS.weightMedium,
     fontFamily: FONTS.family,
     flex: 1,

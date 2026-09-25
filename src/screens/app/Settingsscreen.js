@@ -653,7 +653,7 @@ const SettingsScreen = ({ navigation }) => {
         type="warning"
         title="Sign Out"
         message="Are you sure you want to sign out?"
-        primaryButtonText="Yes, Sign Out"
+        primaryButtonText="Sign Out"
         secondaryButtonText="Cancel"
         onPrimaryPress={confirmSignOut}
         onSecondaryPress={() => setShowLogoutModal(false)}

@@ -56,18 +56,18 @@ const isValidUrl = (url) =>
 
 // ─── Build initial form state from a ServiceOffering document ─────────────────
 const buildServiceState = (service) => ({
-  servicename:    service?.servicename    || '',
-  category:       service?.serviceCategory || '',
-  subCategories:  service?.subCategories  || [],
-  keywords:       service?.keywords       || [],
-  bio:            service?.description    || '',
-  experience:     service?.experience != null ? String(service.experience) : '',
+  servicename: service?.servicename || '',
+  category: service?.serviceCategory || '',
+  subCategories: service?.subCategories || [],
+  keywords: service?.keywords || [],
+  bio: service?.description || '',
+  experience: service?.experience != null ? String(service.experience) : '',
   existingImages: (service?.portfolioImages || []).filter((img) => img && isValidUrl(img.url)),
-  existingPDFs:   (service?.portfolioPDFs  || []).filter((pdf) => pdf && isValidUrl(pdf.url)),
-  images:         [],
-  imagePreviews:  [],
-  pdfs:           [],
-  pdfPreviews:    [],
+  existingPDFs: (service?.portfolioPDFs || []).filter((pdf) => pdf && isValidUrl(pdf.url)),
+  images: [],
+  imagePreviews: [],
+  pdfs: [],
+  pdfPreviews: [],
 });
 
 // ─── Field component ──────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ const ImageItem = ({ item, index, serviceName, isOnline, onRemove }) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 const EditServiceScreen = ({ navigation, route }) => {
-  const insets    = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const serviceId = route?.params?.serviceId;
 
   const { isOnline, wasOffline, resetOfflineFlag } = useNetworkStatus();
@@ -168,19 +168,19 @@ const EditServiceScreen = ({ navigation, route }) => {
   const {
     data: providerProfile,
     isLoading: isLoadingProfile,
-    refetch:   refetchProfile,
+    refetch: refetchProfile,
     isFetching: isFetchingProfile,
   } = useFetchMyProviderProfileQuery();
 
   const {
-    data:      categoriesData,
+    data: categoriesData,
     isLoading: isLoadingCats,
-    refetch:   refetchCats,
+    refetch: refetchCats,
     isFetching: isFetchingCats,
   } = useFetchActiveCategoriesQuery();
 
   const [updateService, { isLoading: isUpdating }] = useUpdateServiceOfferingMutation();
-  const [getPresignedUrl]                           = useGetS3PresignedUrlMutation();
+  const [getPresignedUrl] = useGetS3PresignedUrlMutation();
 
   const targetService = useMemo(
     () => providerProfile?.serviceOfferings?.find((s) => s._id === serviceId) ?? null,
@@ -189,8 +189,8 @@ const EditServiceScreen = ({ navigation, route }) => {
 
   const rules = useMemo(() => categoriesData?.rules ?? {}, [categoriesData]);
 
-  const [form,           setForm]           = useState(null);
-  const [showCatPicker,  setShowCatPicker]  = useState(false);
+  const [form, setForm] = useState(null);
+  const [showCatPicker, setShowCatPicker] = useState(false);
   const [isUploadingImg, setIsUploadingImg] = useState(false);
   const [isUploadingPDF, setIsUploadingPDF] = useState(false);
 
@@ -239,7 +239,7 @@ const EditServiceScreen = ({ navigation, route }) => {
 
   const handleToggle = useCallback((key, value) => {
     setForm((prev) => {
-      const list   = prev[key] || [];
+      const list = prev[key] || [];
       const exists = list.includes(value);
       return { ...prev, [key]: exists ? list.filter((i) => i !== value) : [...list, value] };
     });
@@ -250,7 +250,7 @@ const EditServiceScreen = ({ navigation, route }) => {
     for (const asset of files) {
       try {
         const presigned = await getPresignedUrl({
-          filename:    asset.fileName || 'file',
+          filename: asset.fileName || 'file',
           contentType: asset.type || (fileType === 'image' ? 'image/jpeg' : 'application/pdf'),
         }).unwrap();
 
@@ -290,7 +290,7 @@ const EditServiceScreen = ({ navigation, route }) => {
             ...prev,
             existingImages: [...prev.existingImages, ...uploaded],
           }));
-        } catch (_) {}
+        } catch (_) { }
         finally {
           setIsUploadingImg(false);
         }
@@ -332,7 +332,7 @@ const EditServiceScreen = ({ navigation, route }) => {
             ...prev,
             existingPDFs: [...prev.existingPDFs, ...uploaded],
           }));
-        } catch (_) {}
+        } catch (_) { }
         finally {
           setIsUploadingPDF(false);
         }
@@ -396,14 +396,14 @@ const EditServiceScreen = ({ navigation, route }) => {
     try {
       await updateService({
         serviceId,
-        servicename:      form.servicename,
-        serviceCategory:  form.category,
-        subCategories:    form.subCategories,
-        keywords:         form.keywords,
-        description:      form.bio,
-        experience:       form.experience !== '' ? form.experience : undefined,
-        portfolioImages:  form.existingImages,
-        portfolioPDFs:    form.existingPDFs,
+        servicename: form.servicename,
+        serviceCategory: form.category,
+        subCategories: form.subCategories,
+        keywords: form.keywords,
+        description: form.bio,
+        experience: form.experience !== '' ? form.experience : undefined,
+        portfolioImages: form.existingImages,
+        portfolioPDFs: form.existingPDFs,
       }).unwrap();
 
       Alert.alert('Success', 'Service updated successfully!', [

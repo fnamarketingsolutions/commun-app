@@ -8,7 +8,7 @@ import {
   StyleSheet,
   StatusBar,
   FlatList,
-  Dimensions,
+  useWindowDimensions,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ import HomeBannerCarousel from '../../components/HomeBannerCarousel';
 import CategorySection from '../../components/CategorySection';
 import BroadcastSection from '../../components/BroadcastSection';
 import TopProvidersPodium from '../../components/TopProvidersPodium';
-import { COLORS, FONTS, SHADOW } from '../../theme';
+import { COLORS, FONTS, SHADOW, MAX_FONT_SCALE } from '../../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../../utils/responsive';
 import {
   useAddToWishlistMutation,
@@ -51,8 +51,9 @@ import { getUserCommunityName } from '../../utils/communityHelpers';
 import { useGetActiveBannersQuery } from '../../redux/service/bannerApi';
 import { useLazyFetchCommunityLocalBusinessesQuery } from '../../redux/service/localBusinessMemberApi';
 
-const { width } = Dimensions.get('window');
-const MAX_FONT_SIZE_MULTIPLIER = 1.3;
+// H1 FIX: width and CARD_W are now computed inside the component using useWindowDimensions()
+// so they update on orientation/fold/split-screen changes.
+const MAX_FONT_SIZE_MULTIPLIER = MAX_FONT_SCALE; // sourced from theme
 
 // ─── Mapper ────────────────────────────────────────────────────────────────
 const mapServiceForCard = (service) => {
@@ -85,7 +86,13 @@ const shuffleSlice = (arr, count) => {
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const CARD_W = width * 0.58;
+  // H1 FIX: Reactive width — adapts to orientation, foldable, split-screen
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isSmall  = width < 360;
+  const CARD_W   = isTablet ? width * 0.35 : isSmall ? width * 0.65 : width * 0.58;
+  // H2: Horizontal padding adapts to device class
+  const HORIZONTAL_PAD = isTablet ? 24 : width >= 414 ? 20 : isSmall ? 14 : 18;
 
   const user = useSelector(state => state.auth.user);
   const userCommunityName = getUserCommunityName(user);

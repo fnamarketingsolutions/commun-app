@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   Animated,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -70,8 +71,11 @@ export const CustomAlertModal = ({
   closeOnBackdrop = true,
   children,
 }) => {
-  const scaleAnim = useRef(new Animated.Value(0.82)).current;
+  const scaleAnim   = useRef(new Animated.Value(0.82)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  // AM1: Reactive width for tablet-safe modal card sizing
+  const { width: windowWidth } = useWindowDimensions();
+  const modalMaxWidth = Math.min(windowWidth * 0.85, 400);
 
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.error;
   const resolvedTitle = title || config.defaultTitle;
@@ -141,6 +145,7 @@ export const CustomAlertModal = ({
               style={[
                 styles.modalCard,
                 {
+                  maxWidth: modalMaxWidth,
                   transform: [{ scale: scaleAnim }],
                   opacity: opacityAnim,
                 },

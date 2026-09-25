@@ -7,13 +7,17 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  SafeAreaView,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ActivityIndicator,
   Alert,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
+// CR1 FIX: SafeAreaView must come from react-native-safe-area-context, NOT react-native.
+// The react-native version ignores safe area insets on Android and notched iPhones.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -26,13 +30,17 @@ import {
   useGetMessagesQuery,
   useLeaveCommunityMutation,
 } from '../../redux/service/interestCommunityApi';
-import { COLORS, FONTS, RADIUS } from '../../theme';
+import { COLORS, FONTS, RADIUS, MAX_FONT_SCALE } from '../../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../../utils/responsive';
 import { getFullName } from '../../utils/userHelpers';
 
-const MAX_FONT_SIZE_MULTIPLIER = 1.3;
+// MAX_FONT_SIZE_MULTIPLIER now imported from theme as MAX_FONT_SCALE
+const MAX_FONT_SIZE_MULTIPLIER = MAX_FONT_SCALE;
 
 const ChatRoomScreen = () => {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // CR2: Reactive width for bubble maxWidth — updates on rotation/fold
+  const { width: windowWidth } = useWindowDimensions();
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -354,12 +362,36 @@ const ChatRoomScreen = () => {
     }
   }, [visibleMessages]);
 
+  // Android does not push the screen up with the keyboard, so the message
+  // field stays underneath it. Lift the whole chat by the keyboard height.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const showSub = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      });
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const isLoading = membersLoading || messagesLoading;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingView
-        style={styles.keyboardAvoiding}
+        style={[
+          styles.keyboardAvoiding,
+          Platform.OS === 'android' && keyboardHeight > 0
+            ? { paddingBottom: keyboardHeight }
+            : null,
+        ]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
@@ -473,7 +505,10 @@ const ChatRoomScreen = () => {
         <View
           style={[
             styles.inputBar,
-            { paddingBottom: insets.bottom + moderateScale(8, 0.3) },
+            {
+              paddingBottom:
+                (keyboardHeight > 0 ? moderateScale(8, 0.3) : insets.bottom + moderateScale(8, 0.3)),
+            },
           ]}
         >
           <View style={styles.inputWrapper}>
@@ -653,7 +688,9 @@ const styles = StyleSheet.create({
   msgWrapperOther: { alignItems: 'flex-start' },
 
   bubble: {
-    maxWidth: '80%',
+    // CR3: maxWidth via % is fine here — dynamic windowWidth not needed in StyleSheet
+    // For very wide tablets use a fixed cap via inline style on the component
+    maxWidth: '78%',
     padding: scaleWidth(12),
     borderRadius: moderateScale(RADIUS.lg, 0.3),
     borderWidth: moderateScale(1, 0.3),
