@@ -188,7 +188,7 @@ export function useFCM(navigationRef) {
         await registerMobilePush({
           token,
           platform: Platform.OS,
-          appId: 'in.commun.app',
+          appId: Platform.OS === 'ios' ? 'in.rakita.commun' : 'in.commun.app',
           deviceId: '',
         }).unwrap();
         tokenRef.current = token;
@@ -207,7 +207,7 @@ export function useFCM(navigationRef) {
           await registerMobilePush({
             token: newToken,
             platform: Platform.OS,
-            appId: 'in.commun.app',
+            appId: Platform.OS === 'ios' ? 'in.rakita.commun' : 'in.commun.app',
             deviceId: '',
           }).unwrap();
           tokenRef.current = newToken;

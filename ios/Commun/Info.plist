@@ -10,6 +10,8 @@
 	<string>Commun</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -33,8 +35,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Commun uses your location to automatically fill in your address so neighbours and service providers near you can find you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Commun uses your location to automatically fill in your address so neighbours and service providers near you can find you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Commun needs access to your photos so you can upload a profile picture, service images, and event media for your community.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>
