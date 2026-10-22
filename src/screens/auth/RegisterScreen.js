@@ -34,6 +34,7 @@ import { NetworkAwareView } from '../../components/NetworkAwareView';
 import GradientText from '../../components/common/GradientText';
 import { setUser } from '../../redux/slices/authSlice'; // ✅ Added
 import { CustomAlertModal } from '../../components/CustomAlertModal';
+import analyticsService from '../../services/AnalyticsService';
 
 const { width } = Dimensions.get('window');
 
@@ -333,6 +334,11 @@ const RegisterScreen = ({ navigation }) => {
         dispatch(setUser(result.user));
 
         const isOtherCommunity = community.communName === '__other__';
+
+        // Log Meta Standard Event: Complete Registration
+        analyticsService.logCompleteRegistration(
+          isOtherCommunity ? 'community_creator_signup' : 'community_member_signup'
+        );
 
         // Navigate to location permission after alert for both flows
         const navigateToLocation = () => {

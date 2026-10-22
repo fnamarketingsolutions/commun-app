@@ -9,6 +9,7 @@ import BottomTabNavigator from './BottomTabNavigator.js';
 //    from AppNavigator keeps working without changes.
 export { ROUTES } from './routes';
 export const navigationRef = createNavigationContainerRef();
+import analyticsService from '../services/AnalyticsService';
 // ── Auth screens ──────────────────────────────────────────────────────────
 import SplashScreen from '../screens/auth/SplashScreen';
 import OnboardingScreen from '../screens/auth/Onboardingscreen';
@@ -120,10 +121,36 @@ const TabsScreen = () => (
 
 const Stack = createNativeStackNavigator();
 
-const AppNavigator = () => (
-  <NavigationContainer ref={navigationRef}>
-    <Stack.Navigator
-      initialRouteName={ROUTES.SPLASH}
+const AppNavigator = () => {
+  const routeNameRef = React.useRef();
+  const screenStartTimeRef = React.useRef(Date.now());
+
+  return (
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        const currentRoute = navigationRef.getCurrentRoute()?.name;
+        routeNameRef.current = currentRoute;
+        screenStartTimeRef.current = Date.now();
+        if (currentRoute) {
+          analyticsService.logScreenView(currentRoute);
+        }
+      }}
+      onStateChange={() => {
+        const previousRouteName = routeNameRef.current;
+        const currentRouteName = navigationRef.getCurrentRoute()?.name;
+
+        if (previousRouteName && currentRouteName && previousRouteName !== currentRouteName) {
+          const durationSeconds = (Date.now() - screenStartTimeRef.current) / 1000;
+          analyticsService.logScreenTime(previousRouteName, durationSeconds);
+          analyticsService.logScreenView(currentRouteName);
+          routeNameRef.current = currentRouteName;
+          screenStartTimeRef.current = Date.now();
+        }
+      }}
+    >
+      <Stack.Navigator
+        initialRouteName={ROUTES.SPLASH}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
@@ -222,6 +249,7 @@ const AppNavigator = () => (
      <Stack.Screen name={ROUTES.LOCAL_BUSINESS_DETAIL} component={LocalBusinessDetailScreen}/>
     </Stack.Navigator>
   </NavigationContainer>
-);
+  );
+};
 
 export default AppNavigator;

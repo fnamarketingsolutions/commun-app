@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
+import analyticsService from '../../services/AnalyticsService';
 import {
   View,
   Text,
@@ -71,6 +72,16 @@ const LocalBusinessDetailScreen = () => {
 
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    if (business?._id) {
+      analyticsService.logContentView({
+        contentId: business._id,
+        contentType: 'local_business',
+        contentName: business.businessName,
+      });
+    }
+  }, [business?._id]);
 
   const openUrl = useCallback((url) => {
     if (!url) return;

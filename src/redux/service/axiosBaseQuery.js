@@ -18,4 +18,4 @@ export const axiosBaseQuery = () =>
       };
       return { error };
     }
-  };
+  };

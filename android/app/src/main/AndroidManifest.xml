@@ -5,6 +5,7 @@
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
   <application
     android:name=".MainApplication"
@@ -12,7 +13,7 @@
     android:icon="@mipmap/ic_launcher"
     android:allowBackup="false"
     android:theme="@style/SplashTheme"
-    android:usesCleartextTraffic="true"
+    android:usesCleartextTraffic="${usesCleartextTraffic}"
     android:supportsRtl="true">
     <activity
       android:name=".MainActivity"
@@ -44,5 +45,20 @@
     <meta-data
       android:name="com.google.firebase.messaging.default_notification_icon"
       android:resource="@mipmap/ic_notification" />
+    <meta-data
+      android:name="com.facebook.sdk.ApplicationId"
+      android:value="@string/facebook_app_id" />
+    <meta-data
+      android:name="com.facebook.sdk.ClientToken"
+      android:value="@string/facebook_client_token" />
+    <meta-data
+      android:name="com.facebook.sdk.AutoInitEnabled"
+      android:value="true" />
+    <meta-data
+      android:name="com.facebook.sdk.AutoLogAppEventsEnabled"
+      android:value="true" />
+    <meta-data
+      android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled"
+      android:value="true" />
   </application>
 </manifest>

@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { COLORS, FONTS, RADIUS, SHADOW } from '../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../utils/responsive';
+import analyticsService from '../services/AnalyticsService';
 
 const MAX_FONT_SIZE_MULTIPLIER = 1.3;
 
@@ -98,6 +99,14 @@ const SearchHeader = ({
             placeholderTextColor={COLORS.textMuted}
             maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
             returnKeyType="search"
+            onSubmitEditing={() => {
+              if (searchQuery?.trim()) {
+                analyticsService.logSearch({
+                  searchString: searchQuery.trim(),
+                  contentType: 'service_or_provider',
+                });
+              }
+            }}
           />
           {searchQuery?.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

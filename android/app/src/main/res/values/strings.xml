@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Commun</string>
+    <string name="facebook_app_id" translatable="false">1661584848876276</string>
+    <string name="facebook_client_token" translatable="false">3c653b18a0f0c6ed8eb7428ca5cd20c6</string>
 </resources>

@@ -1,10 +1,26 @@
-# Add project specific ProGuard rules here.
-# By default, the flags in this file are appended to flags specified
-# in /usr/local/Cellar/android-sdk/24.3.3/tools/proguard/proguard-android.txt
-# You can edit the include path and order by changing the proguardFiles
-# directive in build.gradle.
+# R8 rules for the release build.
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Play Console requires at least 25% obfuscation, optimization, and shrinking.
+# React Native, Hermes, Reanimated, Firebase, and the Meta SDK already ship
+# their own consumer rules. Do not add:
+#   -dontobfuscate
+#   -dontoptimize
+#   -dontshrink
+#   -keep class com.facebook.** { *; }
+# That last rule also freezes React Native, which is most of this app's DEX.
 
-# Add any project specific keep options here:
+-keepattributes Signature,InnerClasses,EnclosingMethod,*Annotation*,Exceptions
+
+# JNI entry points.
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
+
+# react-native-config reads these fields by reflection from JavaScript.
+-keep class in.commun.app.BuildConfig { *; }
+
+# Google Play Core & In-App Updates (sp-react-native-in-app-updates)
+-keep class com.google.android.play.core.** { *; }
+-keep class com.google.android.gms.** { *; }
+-keep class com.sudoplz.rninappupdates.** { *; }
+

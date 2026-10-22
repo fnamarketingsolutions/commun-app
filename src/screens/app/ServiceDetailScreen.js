@@ -38,6 +38,7 @@ import { NetworkAwareView } from '../../components/NetworkAwareView';
 import ReviewsSection from '../../components/ReviewsSection';
 import { getUserCommunityName } from '../../utils/communityHelpers';
 import SvgImage from '../../components/SvgImage';
+import analyticsService from '../../services/AnalyticsService';
 
 const { width, height } = Dimensions.get('window');
 const MAX_FONT_SIZE_MULTIPLIER = 1.3;
@@ -588,6 +589,11 @@ const ServiceDetailScreen = ({ route, navigation }) => {
         await removeFromWishlist(serviceId).unwrap();
       } else {
         await addToWishlist(serviceId).unwrap();
+        analyticsService.logAddToWishlist({
+          contentId: serviceId,
+          contentType: 'service',
+          contentName: service?.title,
+        });
       }
     } catch (_) { }
   };
@@ -636,6 +642,17 @@ const ServiceDetailScreen = ({ route, navigation }) => {
       providerId: rawProvider?._id,
     };
   }, [rawService, rawProvider]);
+
+  // Log Meta Standard Event: Content View
+  useEffect(() => {
+    if (service?.id) {
+      analyticsService.logContentView({
+        contentId: service.id,
+        contentType: 'service',
+        contentName: service.title,
+      });
+    }
+  }, [service?.id]);
 
   const provider = useMemo(() => {
     if (!rawProvider?.user) return null;
