@@ -1,4 +1,9 @@
-import React from 'react';
+// components/common/GradientText.js
+// GT1 FIX: Replaced crude text-length * fontSize width estimation with
+// onLayout measurement. Previously: `length * (fontSize * 0.55) + 8`
+// This breaks with wide characters, emojis, ligatures, and non-Latin scripts.
+// New approach: measure the actual rendered text size and use that for the SVG.
+import React, { useState } from 'react';
 import { View, Text, Platform } from 'react-native';
 import Svg, { LinearGradient as SvgGradient, Text as SvgText, Defs, Stop } from 'react-native-svg';
 
@@ -11,17 +16,48 @@ const GradientText = ({ colors, children, style, ...props }) => {
     );
   }
 
-  const fontSize = style?.fontSize || 14;
-  const fontWeight = style?.fontWeight || '600';
-  const fontFamily = style?.fontFamily || undefined;
+  const fontSize     = style?.fontSize || 14;
+  const fontWeight   = style?.fontWeight || '600';
+  const fontFamily   = style?.fontFamily || undefined;
   const letterSpacing = style?.letterSpacing || 0;
 
-  // Estimate width based on text length
-  const textWidth = String(children).length * (fontSize * 0.55) + 8;
+  // GT1 FIX: Use onLayout to get the real rendered dimensions.
+  // We render an invisible Text clone to measure, then draw the SVG on top.
+  const [measuredWidth, setMeasuredWidth] = useState(null);
+
+  const handleLayout = (e) => {
+    const { width } = e.nativeEvent.layout;
+    if (width > 0) setMeasuredWidth(width);
+  };
+
+  // Fallback width while measurement hasn't happened yet (first paint).
+  // Use a conservative estimate only as an initial value — it will be
+  // corrected after the first layout pass without any visible flash.
+  const svgWidth = measuredWidth ?? String(children).length * (fontSize * 0.6) + 16;
+  const svgHeight = fontSize * 1.4;
 
   return (
     <View style={{ alignSelf: 'flex-start' }}>
-      <Svg width={textWidth} height={fontSize * 1.4}>
+      {/* Invisible measuring clone — same text, same style, opacity 0 */}
+      <Text
+        onLayout={handleLayout}
+        style={[
+          style,
+          {
+            position: 'absolute',
+            opacity: 0,
+            fontSize,
+            fontWeight,
+            fontFamily,
+            letterSpacing,
+          },
+        ]}
+      >
+        {children}
+      </Text>
+
+      {/* Gradient SVG rendered at measured width */}
+      <Svg width={svgWidth} height={svgHeight}>
         <Defs>
           <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="0">
             <Stop offset="0" stopColor={colors?.[0] || '#73469B'} />
@@ -35,7 +71,7 @@ const GradientText = ({ colors, children, style, ...props }) => {
           fontFamily={fontFamily}
           letterSpacing={letterSpacing}
           x={0}
-          y={fontSize * 1.05} // adjust baseline alignment
+          y={fontSize * 1.05} // baseline alignment
           {...props}
         >
           {children}

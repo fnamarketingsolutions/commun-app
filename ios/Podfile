@@ -17,6 +17,14 @@ end
 target 'Commun' do
   config = use_native_modules!
 
+  # Firebase Swift pods need module maps when built as static libraries
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+  pod 'FirebaseMessaging', :modular_headers => true
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
@@ -27,8 +35,18 @@ target 'Commun' do
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
-      # :ccache_enabled => true
+      :mac_catalyst_enabled => false
     )
+
+    # Xcode 27 no longer supports deployment targets below 15.0
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |bc|
+        bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+      end
+      target.build_phases.each do |phase|
+        next unless phase.respond_to?(:name) && phase.name&.include?('Replace Hermes')
+        phase.always_out_of_date = '1'
+      end
+    end
   end
 end

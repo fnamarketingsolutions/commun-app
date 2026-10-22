@@ -12,6 +12,7 @@ import {
   Dimensions,
   PanResponder,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
@@ -230,6 +231,8 @@ const NotificationModal = ({ visible, item, onClose }) => {
 // ─── Main Screen ───────────────────────────────────────────────────────────
 const NotificationScreen = ({ navigation }) => {
   const dispatch = useDispatch();
+  // N1 FIX: Reactive width for modal card and any layout dependent on screen width
+  const { width } = useWindowDimensions();
   const notifications = useSelector((state) => state.notifications.items);
 
   const [searchQuery, setSearchQuery] = useState('');

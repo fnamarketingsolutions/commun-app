@@ -7,7 +7,7 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -16,7 +16,8 @@ import { COLORS, FONTS, RADIUS } from '../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../utils/responsive';
 import SvgImage from './SvgImage';
 
-const { width } = Dimensions.get('window');
+// SC1 FIX: module-level width removed. Each card component uses useWindowDimensions()
+// for its fallback width, making it reactive to orientation/fold changes.
 
 const PURPLE = COLORS.gradientStart;
 const PINK   = COLORS.gradientEnd;
@@ -182,7 +183,9 @@ export const ServiceCard = ({
   onWishlistToggle,
   toggleDisabled = false,
 }) => {
-  const cWidth = cardWidth || width * 0.58;
+  // SC1 FIX: Reactive width fallback
+  const { width: windowWidth } = useWindowDimensions();
+  const cWidth = cardWidth || windowWidth * 0.58;
   const [localLiked, setLocalLiked] = useState(false);
 
   const liked = isWishlisted !== undefined ? isWishlisted : localLiked;
@@ -424,7 +427,9 @@ export const ServiceGridCard = ({
 // 4. PROVIDER FEATURED CARD
 // ─────────────────────────────────────────────────────────────────────────────
 export const ProviderFeaturedCard = ({ provider, onPress, cardWidth }) => {
-  const cWidth = cardWidth || width * 0.62;
+  // SC1 FIX: Reactive width fallback
+  const { width: windowWidth } = useWindowDimensions();
+  const cWidth = cardWidth || windowWidth * 0.62;
 
   const gradient = pickGradient(provider?.name, PROVIDER_GRADIENT_PAIRS);
   const coverUrl = provider?.coverImage || null;

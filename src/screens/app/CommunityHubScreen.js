@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import LottieView from 'lottie-react-native';
 
+import { useTabBarHeight } from '../../navigations/BottomTabNavigator';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../../utils/responsive';
 import { useCommunityFeaturesQuery } from '../../redux/service/api';
@@ -26,8 +27,8 @@ import { CommunityHubSkeleton } from '../../components/common/CommunityHubSkelet
 
 const MAX_FONT_SIZE_MULTIPLIER = 1.3;
 
-// ── Height to avoid bottom tab bar overlap ──
-const BOTTOM_TAB_HEIGHT = moderateScale(70, 0.3);
+// CH1 FIX: BOTTOM_TAB_HEIGHT is now computed from useTabBarHeight() inside the
+// component, so it correctly includes safe area insets on all devices.
 
 // ── Secretary panels ──────────────────────────────────────────────────────────
 const SECRETARY_PANELS = [
@@ -152,6 +153,7 @@ const LOCAL_BUSINESSES_PANEL = {
 // ─────────────────────────────────────────────────────────────────────────────
 const CommunityHubScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight(); // CH1: reactive tab bar height (includes insets)
   const [activeId, setActiveId] = useState(null);
 
   const { isOnline, wasOffline, resetOfflineFlag } = useNetworkStatus();
@@ -347,7 +349,7 @@ const CommunityHubScreen = ({ navigation }) => {
             styles.scrollContent,
             {
               paddingBottom:
-                insets.bottom + BOTTOM_TAB_HEIGHT + moderateScale(16, 0.3),
+                insets.bottom + tabBarHeight + moderateScale(16, 0.3),
             },
           ]}
           showsVerticalScrollIndicator={false}

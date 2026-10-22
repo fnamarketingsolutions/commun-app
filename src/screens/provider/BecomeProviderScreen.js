@@ -12,6 +12,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Dimensions,
+  useWindowDimensions,
   Alert,
   ActivityIndicator,
   Modal,
@@ -40,15 +41,15 @@ const { width } = Dimensions.get('window');
 const MAX_FONT_SIZE_MULTIPLIER = 1.3;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const DRAFT_KEY             = 'becomeProviderDraft:v1';
+const DRAFT_KEY = 'becomeProviderDraft:v1';
 const PROVIDER_BIO_MAX_CHARS = 500;
-const MAX_IMAGE_SIZE         = 10 * 1024 * 1024; // 10 MB
-const MAX_PDF_SIZE           = 20 * 1024 * 1024; // 20 MB
-const EXPERIENCE_MAX_YEARS   = 80;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20 MB
+const EXPERIENCE_MAX_YEARS = 80;
 const MAX_IMAGES_PER_SERVICE = 5;
 
 // ─── YouTube config ───────────────────────────────────────────────────────────
-const GUIDE_VIDEO_ID  = '5uqpie3gCr0';
+const GUIDE_VIDEO_ID = '5uqpie3gCr0';
 const GUIDE_VIDEO_URL = `https://www.youtube.com/watch?v=${GUIDE_VIDEO_ID}`;
 const GUIDE_THUMBNAIL = `https://img.youtube.com/vi/${GUIDE_VIDEO_ID}/hqdefault.jpg`;
 
@@ -163,12 +164,14 @@ const YoutubeVideoCard = () => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const BecomeProviderScreen = ({ navigation }) => {
-  const insets        = useSafeAreaInsets();
-  const { user }      = useSelector((state) => state.auth);
-  const isMounted     = useRef(true);
+  const insets = useSafeAreaInsets();
+  // BP1 FIX: Reactive width — updates on orientation/fold/split-screen
+  const { width } = useWindowDimensions();
+  const { user } = useSelector((state) => state.auth);
+  const isMounted = useRef(true);
 
   const [triggerCheckAuth] = useLazyCheckAuthQuery();
-  const { isOnline }       = useNetworkStatus();
+  const { isOnline } = useNetworkStatus();
 
   const isPublicMember = user?.isPublicMember ?? false;
 
@@ -182,22 +185,22 @@ const BecomeProviderScreen = ({ navigation }) => {
   const rules = categoriesData?.rules || {};
 
   // ── Form state ────────────────────────────────────────────────────────────
-  const [providerBio,    setProviderBio]    = useState('');
-  const [services,       setServices]       = useState([
+  const [providerBio, setProviderBio] = useState('');
+  const [services, setServices] = useState([
     {
       id: Date.now(),
-      servicename:   '',
-      category:      '',
+      servicename: '',
+      category: '',
       subCategories: [],
-      keywords:      [],
-      images:        [],
-      pdfs:          [],
-      bio:           '',
-      experience:    '',
+      keywords: [],
+      images: [],
+      pdfs: [],
+      bio: '',
+      experience: '',
     },
   ]);
-  const [errors,         setErrors]         = useState({});
-  const [isSubmitting,   setIsSubmitting]   = useState(false);
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoryPicker, setCategoryPicker] = useState({ visible: false, serviceId: null });
 
   // ── Draft restore ─────────────────────────────────────────────────────────
@@ -214,15 +217,15 @@ const BecomeProviderScreen = ({ navigation }) => {
         if (Array.isArray(parsed.services) && parsed.services.length > 0) {
           setServices(
             parsed.services.map((s) => ({
-              id:            s?.id            || Date.now() + Math.random(),
-              servicename:   s?.servicename   || '',
-              category:      s?.category      || '',
+              id: s?.id || Date.now() + Math.random(),
+              servicename: s?.servicename || '',
+              category: s?.category || '',
               subCategories: Array.isArray(s?.subCategories) ? s.subCategories : [],
-              keywords:      Array.isArray(s?.keywords)      ? s.keywords      : [],
+              keywords: Array.isArray(s?.keywords) ? s.keywords : [],
               images: [],
-              pdfs:   [],
-              bio:           s?.bio           || '',
-              experience:    s?.experience    ?? '',
+              pdfs: [],
+              bio: s?.bio || '',
+              experience: s?.experience ?? '',
             }))
           );
         }
@@ -242,13 +245,13 @@ const BecomeProviderScreen = ({ navigation }) => {
           JSON.stringify({
             providerBio: providerBio || '',
             services: services.map((s) => ({
-              id:            s.id,
-              servicename:   s.servicename   || '',
-              category:      s.category      || '',
+              id: s.id,
+              servicename: s.servicename || '',
+              category: s.category || '',
               subCategories: Array.isArray(s.subCategories) ? s.subCategories : [],
-              keywords:      Array.isArray(s.keywords)      ? s.keywords      : [],
-              bio:           s.bio           || '',
-              experience:    s.experience    ?? '',
+              keywords: Array.isArray(s.keywords) ? s.keywords : [],
+              bio: s.bio || '',
+              experience: s.experience ?? '',
             })),
             savedAt: Date.now(),
           })
@@ -377,17 +380,17 @@ const BecomeProviderScreen = ({ navigation }) => {
           prev.map((s) =>
             s.id === serviceId
               ? {
-                  ...s,
-                  images: [
-                    ...s.images,
-                    ...validAssets.map((a) => ({
-                      uri:      a.uri,
-                      fileName: a.fileName || 'image.jpg',
-                      type:     a.type     || 'image/jpeg',
-                      size:     a.fileSize || 0,
-                    })),
-                  ].slice(0, MAX_IMAGES_PER_SERVICE),
-                }
+                ...s,
+                images: [
+                  ...s.images,
+                  ...validAssets.map((a) => ({
+                    uri: a.uri,
+                    fileName: a.fileName || 'image.jpg',
+                    type: a.type || 'image/jpeg',
+                    size: a.fileSize || 0,
+                  })),
+                ].slice(0, MAX_IMAGES_PER_SERVICE),
+              }
               : s
           )
         );
@@ -412,7 +415,7 @@ const BecomeProviderScreen = ({ navigation }) => {
     }
     try {
       const results = await pick({ type: [types.pdf], allowMultiSelection: false, mode: 'import' });
-      const file    = Array.isArray(results) ? results[0] : results;
+      const file = Array.isArray(results) ? results[0] : results;
       if (!file) return;
 
       const size = file.size || 0;
@@ -424,12 +427,12 @@ const BecomeProviderScreen = ({ navigation }) => {
         prev.map((s) =>
           s.id === serviceId
             ? {
-                ...s,
-                pdfs: [
-                  ...s.pdfs,
-                  { uri: file.uri, fileName: file.name || 'document.pdf', size },
-                ],
-              }
+              ...s,
+              pdfs: [
+                ...s.pdfs,
+                { uri: file.uri, fileName: file.name || 'document.pdf', size },
+              ],
+            }
             : s
         )
       );
@@ -458,15 +461,15 @@ const BecomeProviderScreen = ({ navigation }) => {
     setServices((prev) => [
       ...prev,
       {
-        id:            Date.now(),
-        servicename:   '',
-        category:      '',
+        id: Date.now(),
+        servicename: '',
+        category: '',
         subCategories: [],
-        keywords:      [],
-        images:        [],
-        pdfs:          [],
-        bio:           '',
-        experience:    '',
+        keywords: [],
+        images: [],
+        pdfs: [],
+        bio: '',
+        experience: '',
       },
     ]);
   };
@@ -484,7 +487,7 @@ const BecomeProviderScreen = ({ navigation }) => {
   // ── Validation ────────────────────────────────────────────────────────────
   const validateForm = () => {
     const newErrors = {};
-    let hasErrors   = false;
+    let hasErrors = false;
 
     if (!providerBio.trim()) {
       newErrors['providerBio'] = 'Provider bio is required.';
@@ -562,12 +565,12 @@ const BecomeProviderScreen = ({ navigation }) => {
         'services',
         JSON.stringify(
           services.map((s) => ({
-            servicename:   s.servicename   || '',
-            category:      s.category      || '',
+            servicename: s.servicename || '',
+            category: s.category || '',
             subCategories: s.subCategories || [],
-            keywords:      s.keywords      || [],
-            bio:           s.bio           || '',
-            experience:    s.experience    ?? '',
+            keywords: s.keywords || [],
+            bio: s.bio || '',
+            experience: s.experience ?? '',
           }))
         )
       );
@@ -576,15 +579,15 @@ const BecomeProviderScreen = ({ navigation }) => {
         (service.images || []).forEach((image) => {
           if (!image?.uri) return;
           formData.append(`service_${index}_images`, {
-            uri:  image.uri,
+            uri: image.uri,
             name: image.fileName || 'image.jpg',
-            type: image.type     || 'image/jpeg',
+            type: image.type || 'image/jpeg',
           });
         });
         (service.pdfs || []).forEach((pdf) => {
           if (!pdf?.uri) return;
           formData.append(`service_${index}_pdfs`, {
-            uri:  pdf.uri,
+            uri: pdf.uri,
             name: pdf.fileName || 'document.pdf',
             type: 'application/pdf',
           });
@@ -652,7 +655,7 @@ const BecomeProviderScreen = ({ navigation }) => {
       let message = 'Failed to submit. Please try again.';
       if (error?.response) {
         const { status } = error.response;
-        const serverMsg  = error.response.data?.message;
+        const serverMsg = error.response.data?.message;
         if (status === 401 || status === 403) message = 'Your session has expired. Please log in again.';
         else if (status === 409) message = serverMsg || 'You already have a pending provider application.';
         else if (status >= 500) message = 'Server error. Please try again later.';
@@ -668,7 +671,7 @@ const BecomeProviderScreen = ({ navigation }) => {
 
   // ── Service card ──────────────────────────────────────────────────────────
   const renderServiceCard = (service, index) => {
-    const sid           = service.id;
+    const sid = service.id;
     const categoryRules = service.category ? rules[service.category] : null;
 
     return (
@@ -1099,8 +1102,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: moderateScale(1, 0.3),
     borderBottomColor: COLORS.border,
   },
-  backButton:    { width: scaleWidth(24) },
-  headerSpacer:  { width: scaleWidth(24) },
+  backButton: { width: scaleWidth(24) },
+  headerSpacer: { width: scaleWidth(24) },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
@@ -1146,7 +1149,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: scaleHeight(14),    // more spacing
   },
-  fieldGroup:  {
+  fieldGroup: {
     marginBottom: scaleHeight(20),   // increased
   },
   label: {
@@ -1239,8 +1242,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: COLORS.white,
   },
-  chipSelected:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  chipText:         { fontSize: scaleFont(13), color: COLORS.textPrimary },
+  chipSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  chipText: { fontSize: scaleFont(13), color: COLORS.textPrimary },
   chipTextSelected: { color: '#fff' },
   uploadButton: {
     borderWidth: 1,
@@ -1441,7 +1444,7 @@ const videoStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
- playCircle: {
+  playCircle: {
     width: moderateScale(52, 0.3),
     height: moderateScale(52, 0.3),
     borderRadius: moderateScale(26, 0.3),

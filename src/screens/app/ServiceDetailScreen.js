@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  useWindowDimensions,
   StatusBar,
   Linking,
   ActivityIndicator,
@@ -32,6 +33,7 @@ import {
 } from '../../redux/service/api';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../../utils/responsive';
+import { useTabBarHeight } from '../../navigations/BottomTabNavigator';
 import { ServiceCard } from '../../components/SharedCards';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { NetworkAwareView } from '../../components/NetworkAwareView';
@@ -528,6 +530,10 @@ const galleryStyles = StyleSheet.create({
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 const ServiceDetailScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
+  // SD1 FIX: Reactive dimensions — updates on orientation/fold/split-screen
+  const { width, height } = useWindowDimensions();
+  // SD2: Use reactive tab bar height instead of hardcoded constant
+  const tabBarHeight = useTabBarHeight();
   const [descExpanded, setDescExpanded] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [activeTab, setActiveTab] = useState('About');

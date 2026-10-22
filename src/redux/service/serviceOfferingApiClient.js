@@ -27,6 +27,7 @@ serviceOfferingApiClient.interceptors.request.use(
       const token = await getToken();
       if (token) {
         config.headers['Cookie'] = `jwt=${token}`;
+        config.headers['Authorization'] = `Bearer ${token}`;
       }
     } catch (_) {
       // Never block the request if storage read fails

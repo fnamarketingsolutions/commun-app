@@ -1,14 +1,16 @@
 // components/TopProvidersPodium.jsx
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import LottieView from 'lottie-react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-import { COLORS, FONTS } from '../theme';
+import { COLORS, FONTS, MAX_FONT_SCALE } from '../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../utils/responsive';
+import { BREAKPOINTS } from '../utils/breakpoints';
 
-const MAX_FONT_SIZE_MULTIPLIER = 1.3;
+// MAX_FONT_SIZE_MULTIPLIER sourced from theme (TP: removes per-file re-declaration)
+const MAX_FONT_SIZE_MULTIPLIER = MAX_FONT_SCALE;
 
 const getInitials = (name = '') => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -18,8 +20,8 @@ const getInitials = (name = '') => {
 };
 
 // ─── Empty placeholder slot ───────────────────────────────────────────────────
-const EmptySlot = ({ rank, size }) => (
-  <View style={styles.slot}>
+const EmptySlot = ({ rank, size, slotWidth }) => (
+  <View style={[styles.slot, slotWidth ? { width: slotWidth } : null]}>
     <View
       style={[
         styles.avatarRing,
@@ -58,15 +60,15 @@ const EmptySlot = ({ rank, size }) => (
 );
 
 // ─── One podium slot (rank 1, 2, or 3) ───────────────────────────────────────
-const PodiumSlot = ({ provider, rank, size, onPress }) => {
-  if (!provider) return <EmptySlot rank={rank} size={size} />;
+const PodiumSlot = ({ provider, rank, size, onPress, slotWidth }) => {
+  if (!provider) return <EmptySlot rank={rank} size={size} slotWidth={slotWidth} />;
 
   const hasAvatar = Boolean(provider.avatar);
   const Wrapper = onPress ? TouchableOpacity : View;
   const wrapperProps = onPress ? { onPress: () => onPress(provider), activeOpacity: 0.8 } : {};
 
   return (
-    <Wrapper style={styles.slot} {...wrapperProps}>
+    <Wrapper style={[styles.slot, slotWidth ? { width: slotWidth } : null]} {...wrapperProps}>
       {rank === 1 && (
         <LottieView
           source={require('../assets/animations/Crown_Drop.json')}
@@ -128,12 +130,21 @@ const PodiumSlot = ({ provider, rank, size, onPress }) => {
  */
 const TopProvidersPodium = ({ providers = [], onProviderPress }) => {
   const [first, second, third] = providers;
+  // TP1-TP3: Reactive avatar sizes — tablets get larger avatars for better visual impact
+  const { width } = useWindowDimensions();
+  const isTablet = width >= BREAKPOINTS.TABLET;
+
+  const rank1Size = isTablet ? moderateScale(96, 0.3) : moderateScale(76, 0.3);
+  const rank2Size = isTablet ? moderateScale(72, 0.3) : moderateScale(56, 0.3);
+  const rank3Size = isTablet ? moderateScale(72, 0.3) : moderateScale(56, 0.3);
+  // TP1: Slot width — slightly narrower on tablet for better proportions
+  const slotWidth = isTablet ? '28%' : '32%';
 
   return (
     <View style={styles.row}>
-      <PodiumSlot provider={second} rank={2} size={moderateScale(56, 0.3)} onPress={onProviderPress} />
-      <PodiumSlot provider={first}  rank={1} size={moderateScale(76, 0.3)} onPress={onProviderPress} />
-      <PodiumSlot provider={third}  rank={3} size={moderateScale(56, 0.3)} onPress={onProviderPress} />
+      <PodiumSlot provider={second} rank={2} size={rank2Size} onPress={onProviderPress} slotWidth={slotWidth} />
+      <PodiumSlot provider={first}  rank={1} size={rank1Size} onPress={onProviderPress} slotWidth={slotWidth} />
+      <PodiumSlot provider={third}  rank={3} size={rank3Size} onPress={onProviderPress} slotWidth={slotWidth} />
     </View>
   );
 };

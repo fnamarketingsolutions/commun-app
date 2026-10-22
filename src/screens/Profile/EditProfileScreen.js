@@ -119,7 +119,7 @@ const fieldStyles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor:COLORS.white,
+    backgroundColor: COLORS.white,
     borderRadius: moderateScale(RADIUS.md, 0.3),
     borderWidth: moderateScale(1, 0.3),
     borderColor: COLORS.border,
@@ -240,8 +240,8 @@ const EditProfileScreen = ({ navigation }) => {
   const displayAvatar = imageRemoved
     ? null
     : pickedImage
-    ? pickedImage.uri
-    : user?.profileImage || null;
+      ? pickedImage.uri
+      : user?.profileImage || null;
 
   const lastNameRef = useRef(null);
   const phoneRef = useRef(null);
@@ -288,13 +288,13 @@ const EditProfileScreen = ({ navigation }) => {
       },
       displayAvatar
         ? {
-            text: 'Remove Photo',
-            style: 'destructive',
-            onPress: () => {
-              setPickedImage(null);
-              setImageRemoved(true);
-            },
-          }
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: () => {
+            setPickedImage(null);
+            setImageRemoved(true);
+          },
+        }
         : null,
       { text: 'Cancel', style: 'cancel' },
     ].filter(Boolean));
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
     width: moderateScale(32, 0.3),
     height: moderateScale(32, 0.3),
     borderRadius: moderateScale(10, 0.3),
-    backgroundColor:COLORS.white,
+    backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
   },

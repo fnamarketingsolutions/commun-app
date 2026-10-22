@@ -4,12 +4,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
   StatusBar,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -17,18 +15,21 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { COLORS, FONTS, RADIUS, SHADOW } from '../../theme';
+import { COLORS } from '../../theme';
 import { moderateScale, scaleFont } from '../../utils/responsive';
+import styles from './CSS/LoginScrencss';
 import {
   useLoginMutation,
   useSendLoginOtpMutation,
   useVerifyLoginOtpMutation,
+  useLazyCheckAuthQuery,
 } from '../../redux/service/api';
 import { ROUTES } from '../../navigations/routes';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { NetworkAwareView } from '../../components/NetworkAwareView';
 import GradientText from '../../components/common/GradientText';
 import CustomAlertModal from '../../components/CustomAlertModal';
+
 
 const MAX_FONT_SIZE_MULTIPLIER = 1.3;
 
@@ -89,6 +90,7 @@ const LoginScreen = ({ navigation }) => {
   const [login, { isLoading: isEmailLoading }] = useLoginMutation();
   const [sendLoginOtp, { isLoading: isSendingOtp }] = useSendLoginOtpMutation();
   const [verifyLoginOtp, { isLoading: isVerifyingOtp }] = useVerifyLoginOtpMutation();
+  const [triggerCheckAuth] = useLazyCheckAuthQuery();
 
   const isLoading = isEmailLoading || isSendingOtp || isVerifyingOtp;
 
@@ -184,15 +186,25 @@ const LoginScreen = ({ navigation }) => {
     debounceTimer.current = setTimeout(async () => {
       try {
         const result = await verifyLoginOtp({ phoneNumber: digits, code }).unwrap();
-        const route = getRouteForUser(result?.user);
-        navigation.replace(route);
+        let user = result?.user;
+        try {
+          const checked = await triggerCheckAuth(undefined, false).unwrap();
+          console.log('[auth] check-auth after login', {
+            platform: Platform.OS,
+            valid: Boolean(checked?.user),
+          });
+          if (checked?.user) user = checked.user;
+        } catch (checkErr) {
+          console.log('[auth] check-auth after login failed', checkErr?.status || checkErr?.message);
+        }
+        navigation.replace(getRouteForUser(user));
       } catch (err) {
         showAlert('Verification failed', loginErrorText(err, 'Invalid or expired OTP. Please try again.'), 'error');
       } finally {
         debounceTimer.current = null;
       }
     }, 300);
-  }, [phone, otp, verifyLoginOtp, navigation, clearDebounce, showAlert]);
+  }, [phone, otp, verifyLoginOtp, triggerCheckAuth, navigation, clearDebounce, showAlert]);
 
   // ── Email login handler ───────────────────────────────────────────────────
   const handleEmailSignIn = useCallback(() => {
@@ -210,15 +222,25 @@ const LoginScreen = ({ navigation }) => {
     debounceTimer.current = setTimeout(async () => {
       try {
         const result = await login({ email: emailTrim, password: pass }).unwrap();
-        const route = getRouteForUser(result?.user);
-        navigation.replace(route);
+        let user = result?.user;
+        try {
+          const checked = await triggerCheckAuth(undefined, false).unwrap();
+          console.log('[auth] check-auth after login', {
+            platform: Platform.OS,
+            valid: Boolean(checked?.user),
+          });
+          if (checked?.user) user = checked.user;
+        } catch (checkErr) {
+          console.log('[auth] check-auth after login failed', checkErr?.status || checkErr?.message);
+        }
+        navigation.replace(getRouteForUser(user));
       } catch (err) {
         showAlert('Sign in failed', loginErrorText(err, 'Invalid email or password. Please try again.'), 'error');
       } finally {
         debounceTimer.current = null;
       }
     }, 300);
-  }, [email, password, login, navigation, clearDebounce, showAlert]);
+  }, [email, password, login, triggerCheckAuth, navigation, clearDebounce, showAlert]);
 
   // ── Scroll the password field above the keyboard when it's focused ────────
   const handlePasswordFocus = useCallback(() => {
@@ -259,7 +281,10 @@ const LoginScreen = ({ navigation }) => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.badge}>
-                <Text style={styles.badgeText} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
+                <Text
+                  style={styles.badgeText}
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
                   WELCOME BACK
                 </Text>
               </LinearGradient>
@@ -628,167 +653,5 @@ const LoginScreen = ({ navigation }) => {
     </GestureHandlerRootView>
   );
 };
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  gestureRoot: { flex: 1 },
-  safeArea: { flex: 1, backgroundColor: COLORS.white },
-  root: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: moderateScale(20, 0.2),
-    paddingVertical: moderateScale(10, 0.2),
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    borderRadius: moderateScale(RADIUS.full, 0.2),
-    paddingHorizontal: moderateScale(16, 0.2),
-    paddingVertical: moderateScale(6, 0.2),
-    marginBottom: moderateScale(10, 0.2),
-    ...SHADOW.button,
-  },
-  badgeText: {
-    fontSize: scaleFont(FONTS.small),
-    fontWeight: FONTS.weightBold,
-    color: COLORS.white,
-    letterSpacing: moderateScale(0.5, 0.1),
-  },
-  heading: {
-    fontSize: scaleFont(FONTS.heading) + 4,
-    fontWeight: FONTS.weightBold,
-    color: COLORS.textPrimary,
-  },
-  subheading: {
-    fontSize: scaleFont(FONTS.body - 1),
-    fontWeight: FONTS.weightRegular,
-    color: COLORS.textSecondary,
-    lineHeight: moderateScale(19, 0.2),
-    marginTop: moderateScale(3, 0.2),
-    marginBottom: moderateScale(16, 0.2),
-  },
-  label: {
-    fontSize: scaleFont(FONTS.label - 1),
-    fontWeight: FONTS.weightSemiBold,
-    color: COLORS.textSecondary,
-    marginBottom: moderateScale(5, 0.2),
-    letterSpacing: moderateScale(0.2, 0.1),
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: moderateScale(5, 0.2),
-    marginTop: moderateScale(10, 0.2),
-  },
-  forgotLink: {
-    fontSize: scaleFont(FONTS.link) - 1,
-    fontWeight: FONTS.weightSemiBold,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: moderateScale(RADIUS.lg, 0.2),
-    paddingHorizontal: moderateScale(14, 0.2),
-    paddingVertical: moderateScale(10, 0.2),
-    minHeight: moderateScale(46, 0.2),
-    borderWidth: moderateScale(1, 0.2),
-    borderColor: COLORS.border,
-    ...SHADOW.card,
-  },
-  inputRowFocused: { borderColor: COLORS.primary },
-  gradientBorder: {
-    borderRadius: moderateScale(RADIUS.lg, 0.2),
-    padding: 2,
-    backgroundColor: 'transparent',
-    ...SHADOW.card,
-  },
-  gradientBorderFocused: {
-    padding: 3,
-  },
-  inputInnerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: moderateScale(RADIUS.lg - 2, 0.2),
-    paddingHorizontal: moderateScale(14, 0.2),
-    paddingVertical: moderateScale(10, 0.2),
-    minHeight: moderateScale(46, 0.2),
-  },
-  input: {
-    flex: 1,
-    fontSize: scaleFont(FONTS.input),
-    color: COLORS.textPrimary,
-    padding: 0,
-  },
-  btnWrapper: {
-    marginTop: moderateScale(16, 0.2),
-    borderRadius: moderateScale(RADIUS.lg, 0.2),
-    ...SHADOW.button,
-  },
-  btn: {
-    borderRadius: moderateScale(RADIUS.lg, 0.2),
-    paddingVertical: moderateScale(13, 0.2),
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  btnText: {
-    fontSize: scaleFont(FONTS.button) + 1,
-    fontWeight: FONTS.weightBold,
-    color: COLORS.white,
-    letterSpacing: moderateScale(0.3, 0.1),
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: moderateScale(14, 0.2),
-  },
-  footerText: {
-    fontSize: scaleFont(FONTS.link),
-    color: COLORS.textSecondary,
-  },
-  footerLink: {
-    fontSize: scaleFont(FONTS.link),
-    fontWeight: FONTS.weightSemiBold,
-  },
-  phonePrefix: {
-    fontSize: scaleFont(FONTS.input),
-    color: COLORS.textPrimary,
-    fontWeight: FONTS.weightSemiBold,
-    marginRight: moderateScale(8, 0.2),
-  },
-  phoneDivider: {
-    width: moderateScale(1, 0.2),
-    height: moderateScale(18, 0.2),
-    backgroundColor: COLORS.border,
-    marginRight: moderateScale(10, 0.2),
-  },
-  otpActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: moderateScale(8, 0.2),
-  },
-  otpActionLink: {
-    fontSize: scaleFont(FONTS.link) - 1,
-    fontWeight: FONTS.weightSemiBold,
-  },
-  otpActionDisabled: {
-    fontSize: scaleFont(FONTS.link) - 1,
-    fontWeight: FONTS.weightMedium,
-    color: COLORS.textMuted,
-  },
-  toggleMethodBtn: {
-    alignSelf: 'center',
-    marginTop: moderateScale(12, 0.2),
-  },
-  toggleMethodText: {
-    fontSize: scaleFont(FONTS.link) - 1,
-    fontWeight: FONTS.weightSemiBold,
-    color: COLORS.textMuted,
-  },
-});
 
 export default LoginScreen;

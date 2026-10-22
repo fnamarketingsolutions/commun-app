@@ -20,9 +20,9 @@ import GradientText from '../../components/common/GradientText';
 const MAX_FONT_SIZE_MULTIPLIER = 1.3;
 
 const ForgotPasswordScreen = ({ navigation }) => {
-  const [email, setEmail]           = useState('');
-  const [focusedField, setFocused]  = useState(null);
-  const [sent, setSent]             = useState(false);
+  const [email, setEmail] = useState('');
+  const [focusedField, setFocused] = useState(null);
+  const [sent, setSent] = useState(false);
 
   const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
 
@@ -284,9 +284,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  gestureRoot:  { flex: 1 },
-  safeArea:     { flex: 1, backgroundColor: COLORS.white },
-  root:         { flex: 1 },
+  gestureRoot: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: COLORS.white },
+  root: { flex: 1 },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',

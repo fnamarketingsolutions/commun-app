@@ -337,8 +337,8 @@ const UpdateProviderProfile = ({ navigation }) => {
   const displayAvatar = imageRemoved
     ? null
     : pickedImage
-    ? pickedImage.uri
-    : authUser?.profileImage || null;
+      ? pickedImage.uri
+      : authUser?.profileImage || null;
 
   const hasData = !!authUser || !!providerProfile;
   const showOfflineBanner = !isOnline && hasData;
@@ -363,13 +363,13 @@ const UpdateProviderProfile = ({ navigation }) => {
       },
       displayAvatar
         ? {
-            text: 'Remove Photo',
-            style: 'destructive',
-            onPress: () => {
-              setPickedImage(null);
-              setImageRemoved(true);
-            },
-          }
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: () => {
+            setPickedImage(null);
+            setImageRemoved(true);
+          },
+        }
         : null,
       { text: 'Cancel', style: 'cancel' },
     ].filter(Boolean));

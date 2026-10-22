@@ -16,13 +16,20 @@ axiosInstance.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch (_) {}
+    } catch (_) { }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-export const localBusinessBaseQuery = async ({ url, method, body, params }) => {
+export const localBusinessBaseQuery = async ({ url, method = 'GET', body, params }) => {
+  const baseURL = axiosInstance.defaults.baseURL || '';
+  const fullUrl = `${baseURL.replace(/\/+$/, '')}/${String(url || '').replace(/^\/+/, '')}`;
+
+  console.log(`\n📡 [LOCAL BUSINESS API REQUEST] ─────────────────────────────`);
+  console.log(`➡️  ${method.toUpperCase()} ${fullUrl}`);
+  if (params) console.log(`🔍 Params:`, JSON.stringify(params));
+
   try {
     const response = await axiosInstance({
       url,
@@ -30,12 +37,24 @@ export const localBusinessBaseQuery = async ({ url, method, body, params }) => {
       data: body,
       params,
     });
+
+    console.log(`✅ [LOCAL BUSINESS API SUCCESS ${response.status}] ${method.toUpperCase()} ${fullUrl}`);
+    console.log(`📄 Response Data:`, JSON.stringify(response.data, null, 2));
+    console.log(`─────────────────────────────────────────────────────────────\n`);
+
     return { data: response.data };
   } catch (error) {
+    const status = error.response?.status || 'NO_RESPONSE';
+    const backendError = error.response?.data || error.message;
+
+    console.log(`❌ [LOCAL BUSINESS API ERROR ${status}] ${method.toUpperCase()} ${fullUrl}`);
+    console.log(`💥 Backend Error Response:`, JSON.stringify(backendError, null, 2));
+    console.log(`─────────────────────────────────────────────────────────────\n`);
+
     return {
       error: {
         status: error.response?.status,
-        data: error.response?.data || error.message,
+        data: backendError,
       },
     };
   }

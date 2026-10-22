@@ -1,4 +1,7 @@
 // components/CategorySection.jsx
+// CA1 FIX: gridItem width adapts from 25% (4-col phones) to 16.66% (6-col tablets).
+// CA2:     Icon size scales up on tablet for better visual weight.
+// CA3:     Label fontSize has a 10pt minimum on small devices.
 import React from 'react';
 import {
   View,
@@ -7,30 +10,60 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 
-import { COLORS, FONTS, SHADOW } from '../theme';
+import { COLORS, FONTS, SHADOW, MAX_FONT_SCALE } from '../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../utils/responsive';
 import GradientText from './common/GradientText';
 import { getIoniconName, getIconGradient } from '../utils/categoryIconMap';
-
-const MAX_FONT_SIZE_MULTIPLIER = 1.3;
+import { BREAKPOINTS } from '../utils/breakpoints';
 
 // ─── Single grid cell ─────────────────────────────────────────────────────
-const CategoryGridItem = ({ item, onPress }) => {
-  const hasImage = Boolean(item.image?.url);
-  const iconName = getIoniconName(item.icon);
+const CategoryGridItem = ({ item, onPress, isTablet, isSmall }) => {
+  const hasImage      = Boolean(item.image?.url);
+  const iconName      = getIoniconName(item.icon);
   const gradientColors = getIconGradient(item.name || item._id);
 
+  // CA2: Icon container size — larger on tablet
+  const iconContainerSize = isTablet
+    ? moderateScale(56, 0.3)
+    : moderateScale(48, 0.3);
+
+  // CA2: Icon glyph size scales with container
+  const iconGlyphSize = isTablet ? scaleFont(24) : scaleFont(20);
+
+  // CA3: Label font size — minimum 10 on small devices
+  const labelSize = isSmall
+    ? Math.max(scaleFont(9.5), 10)
+    : isTablet
+    ? scaleFont(11)
+    : scaleFont(9.5);
+
   return (
-    <TouchableOpacity style={styles.gridItem} activeOpacity={0.8} onPress={onPress}>
+    <TouchableOpacity
+      style={[
+        styles.gridItem,
+        // CA1: 6 columns on tablet, 4 columns on phone
+        { width: isTablet ? '16.66%' : '25%' },
+      ]}
+      activeOpacity={0.8}
+      onPress={onPress}
+    >
       <LinearGradient
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.iconBg}
+        style={[
+          styles.iconBg,
+          {
+            width: iconContainerSize,
+            height: iconContainerSize,
+            borderRadius: moderateScale(isTablet ? 16 : 13, 0.3),
+          },
+        ]}
       >
         {hasImage ? (
           <Image
@@ -39,10 +72,14 @@ const CategoryGridItem = ({ item, onPress }) => {
             resizeMode="cover"
           />
         ) : (
-          <Icon name={iconName} size={scaleFont(20)} color={COLORS.white} />
+          <Icon name={iconName} size={iconGlyphSize} color={COLORS.white} />
         )}
       </LinearGradient>
-      <Text style={styles.label} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER} numberOfLines={1}>
+      <Text
+        style={[styles.label, { fontSize: labelSize }]}
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
+        numberOfLines={1}
+      >
         {item.name}
       </Text>
     </TouchableOpacity>
@@ -52,8 +89,9 @@ const CategoryGridItem = ({ item, onPress }) => {
 /**
  * CategorySection
  * Card-shaped section (same visual language as HomeHeader: white, rounded,
- * elevated) showing a title + "View all" row and a 4-column category grid.
- * Renders at most 8 categories to fill a clean 2-row x 4-column grid.
+ * elevated) showing a title + "View all" row and a category grid.
+ * • 4 columns on phones (8 categories max → 2 rows)
+ * • 6 columns on tablets (12 categories max → 2 rows)
  */
 const CategorySection = ({
   categories = [],
@@ -62,20 +100,27 @@ const CategorySection = ({
   onViewAllPress,
   title = 'Categories',
 }) => {
+  const { width } = useWindowDimensions();
+  const isTablet  = width >= BREAKPOINTS.TABLET;
+  const isSmall   = width < BREAKPOINTS.SMALL;
+
+  // CA1: tablet shows 12 items (2 rows × 6 cols), phone shows 8 (2 rows × 4 cols)
+  const maxItems = isTablet ? 12 : 8;
+  const displayedCategories = categories.slice(0, maxItems);
+
   const gradientColors = [COLORS.gradientStart, COLORS.gradientEnd];
-  const displayedCategories = categories.slice(0, 8);
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.title} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
+        <Text style={styles.title} maxFontSizeMultiplier={MAX_FONT_SCALE}>
           {title}
         </Text>
         <TouchableOpacity onPress={onViewAllPress}>
           <GradientText
             colors={gradientColors}
             style={styles.viewAll}
-            maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
           >
             View all
           </GradientText>
@@ -92,6 +137,8 @@ const CategorySection = ({
             <CategoryGridItem
               key={item._id || item.name}
               item={item}
+              isTablet={isTablet}
+              isSmall={isSmall}
               onPress={() => onCategoryPress?.(item)}
             />
           ))}
@@ -139,15 +186,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
+  // gridItem width is set inline per device class (see CategoryGridItem)
   gridItem: {
-    width: '25%', // 4 columns
     alignItems: 'center',
     marginBottom: scaleHeight(16),
   },
   iconBg: {
-    width: moderateScale(48, 0.3),
-    height: moderateScale(48, 0.3),
-    borderRadius: moderateScale(13, 0.3),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.inputBg,
@@ -158,7 +202,6 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   label: {
-    fontSize: scaleFont(9.5),
     fontWeight: FONTS.weightSemiBold,
     color: COLORS.textPrimary,
     textAlign: 'center',

@@ -14,6 +14,7 @@ import {
   Image,
   FlatList,
   Dimensions,
+  useWindowDimensions,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -116,6 +117,8 @@ const getEventAttachments = (event) => {
 const ImageCarouselModal = ({ visible, images, initialIndex, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex || 0);
   const flatListRef = useRef(null);
+  // ES1 FIX: Reactive width for scroll calculations
+  const { width: screenWidth } = useWindowDimensions();
 
   useEffect(() => {
     if (visible) {

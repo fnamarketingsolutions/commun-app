@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions, Keyboard, useWindowDimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,12 +23,14 @@ const TAB_ICONS = {
 const ACCESSIBILITY_STATE_SELECTED = { selected: true };
 const ACCESSIBILITY_STATE_UNSELECTED = {};
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IS_SMALL_DEVICE = SCREEN_WIDTH < 360;
-const IS_TABLET = SCREEN_WIDTH >= 768;
-
-const ICON_SIZE = IS_TABLET ? 24 : IS_SMALL_DEVICE ? 20 : 22;
-const LABEL_SIZE = IS_TABLET ? 12 : IS_SMALL_DEVICE ? 10 : 11;
+// A11 FIX: Static values kept ONLY for the exported TAB_BAR_CONTENT_HEIGHT / useTabBarHeight().
+// These don't need to be reactive since the physical bar height rarely changes
+// (it's based on device class, not orientation).
+const { width: SCREEN_WIDTH_INITIAL } = Dimensions.get('window');
+const IS_SMALL_DEVICE_INITIAL = SCREEN_WIDTH_INITIAL < 360;
+const IS_TABLET_INITIAL       = SCREEN_WIDTH_INITIAL >= 768;
+// ICON_SIZE and LABEL_SIZE are now computed INSIDE TabBarButton using useWindowDimensions.
+// This makes them reactive to orientation / split-screen changes.
 
 const BAR_MIN_HEIGHT = 56;
 const BAR_TOP_PADDING = SPACING.xs;
@@ -56,6 +58,13 @@ const TabBarButton = React.memo(function TabBarButton({
   onPress,
   onLongPress,
 }) {
+  // A11 FIX: Reactive device class — recalculates on orientation/split-screen
+  const { width: tabWidth } = useWindowDimensions();
+  const isSmallTab  = tabWidth < 360;
+  const isTabletTab = tabWidth >= 768;
+  const ICON_SIZE   = isTabletTab ? 24 : isSmallTab ? 20 : 22;
+  const LABEL_SIZE  = isTabletTab ? 12 : isSmallTab ? 10 : 11;
+
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {

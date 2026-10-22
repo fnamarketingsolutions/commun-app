@@ -32,4 +32,4 @@ const scaleFont = (size) => {
   return newSize * fontScale;
 };
 
-export { scaleWidth, scaleHeight, scaleFont, moderateScale };
+export { scaleWidth, scaleHeight, scaleFont, moderateScale, MAX_FONT_SCALE };

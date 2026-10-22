@@ -1,42 +1,57 @@
 // src/utils/tokenStorage.js
 import EncryptedStorage from 'react-native-encrypted-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const JWT_KEY = 'commun_jwt_token';
 
 /**
- * Save JWT to Android Keystore / iOS Keychain.
+ * Save JWT to Android Keystore / iOS Keychain with AsyncStorage fallback.
  * Called automatically by apiClient's response interceptor on login/register.
  */
 export const saveToken = async (token) => {
+  if (!token) return;
+
   try {
     await EncryptedStorage.setItem(JWT_KEY, token);
-  } catch (e) {
-    console.warn('[tokenStorage] saveToken failed:', e?.message);
+  } catch (_) {
+    // AsyncStorage below still keeps the session if the keychain write fails.
   }
+
+  try {
+    await AsyncStorage.setItem(JWT_KEY, token);
+  } catch (_) {}
 };
 
 /**
  * Read the stored JWT.
- * Called by apiClient's request interceptor to attach Cookie header,
- * and by SplashScreen to decide whether to call checkAuth.
+ * Tries EncryptedStorage first, falls back to AsyncStorage.
  */
 export const getToken = async () => {
   try {
-    return await EncryptedStorage.getItem(JWT_KEY);
-  } catch (e) {
-    return null;
-  }
+    const token = await EncryptedStorage.getItem(JWT_KEY);
+    if (token) {
+      return token;
+    }
+  } catch (_) {}
+
+  try {
+    const fallbackToken = await AsyncStorage.getItem(JWT_KEY);
+    if (fallbackToken) return fallbackToken;
+  } catch (_) {}
+
+  return null;
 };
 
 /**
- * Delete the stored JWT.
- * Called by apiClient's response interceptor on logout,
- * and by SplashScreen when checkAuth returns 401 (expired/invalid token).
+ * Delete the stored JWT from both storages.
  */
 export const clearToken = async () => {
   try {
     await EncryptedStorage.removeItem(JWT_KEY);
-  } catch (e) {
-    console.warn('[tokenStorage] clearToken failed:', e?.message);
+  } catch (_) {
+    // Missing keychain item is normal when the session lived only in AsyncStorage.
   }
+  try {
+    await AsyncStorage.removeItem(JWT_KEY);
+  } catch (_) {}
 };
