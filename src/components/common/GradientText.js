@@ -30,11 +30,9 @@ const GradientText = ({ colors, children, style, ...props }) => {
     if (width > 0) setMeasuredWidth(width);
   };
 
-  // Fallback width while measurement hasn't happened yet (first paint).
-  // Use a conservative estimate only as an initial value — it will be
-  // corrected after the first layout pass without any visible flash.
-  const svgWidth = measuredWidth ?? String(children).length * (fontSize * 0.6) + 16;
-  const svgHeight = fontSize * 1.4;
+  // Add safety padding (+12px width, 1.6x height) so letters with descenders/curves like 'p', 'g', 'y' are never clipped
+  const svgWidth = (measuredWidth ? Math.ceil(measuredWidth) + 12 : String(children).length * (fontSize * 0.7) + 24);
+  const svgHeight = Math.ceil(fontSize * 1.6);
 
   return (
     <View style={{ alignSelf: 'flex-start' }}>

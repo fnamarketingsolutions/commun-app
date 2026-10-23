@@ -136,7 +136,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: moderateScale(14, 0.2),
+    marginTop: moderateScale(16, 0.2),
+    marginBottom: moderateScale(20, 0.2),
   },
   footerText: {
     fontSize: scaleFont(FONTS.link),
@@ -145,6 +146,8 @@ const styles = StyleSheet.create({
   footerLink: {
     fontSize: scaleFont(FONTS.link),
     fontWeight: FONTS.weightSemiBold,
+    paddingLeft: moderateScale(2, 0.2),
+    paddingRight: moderateScale(8, 0.2),
   },
   phonePrefix: {
     fontSize: scaleFont(FONTS.input),
