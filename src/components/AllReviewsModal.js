@@ -74,7 +74,7 @@ const StarPicker = ({ value, onSelect, size = 22, disabled = false }) => (
     {[1, 2, 3, 4, 5].map((star) => (
       <TouchableOpacity
         key={star}
-        onPress={() => !disabled && onSelect(star)}
+        onPress={() => !disabled && onSelect(star === value ? 0 : star)}
         disabled={disabled}
         hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
         activeOpacity={0.7}>
@@ -161,18 +161,17 @@ const AllReviewsModal = ({ visible, serviceId, onClose }) => {
 
   const onStartEdit = (c) => {
     setEditingId(c._id);
-    setEditingText(c.comment);
+    setEditingText(c.comment || '');
     setEditingRating(c.rating || 0);
   };
 
   const onSaveEdit = async () => {
     const trimmed = editingText.trim();
-    if (!editingRating || editingRating < 1 || editingRating > 5) {
-      Alert.alert('Rating required', 'Please select a rating (1-5 stars)');
-      return;
-    }
-    if (!trimmed) {
-      Alert.alert('Review required', 'Please write a review comment');
+    const hasRating = editingRating >= 1 && editingRating <= 5;
+    const hasText = trimmed.length > 0;
+
+    if (!hasRating && !hasText) {
+      Alert.alert('Rating or Review Required', 'Please select a star rating or write a review comment (or both).');
       return;
     }
     try {
@@ -180,7 +179,7 @@ const AllReviewsModal = ({ visible, serviceId, onClose }) => {
         commentId: editingId,
         serviceId,
         comment: trimmed,
-        rating: editingRating,
+        rating: hasRating ? editingRating : undefined,
       }).unwrap();
       setEditingId(null);
       setEditingText('');
@@ -306,12 +305,14 @@ const AllReviewsModal = ({ visible, serviceId, onClose }) => {
 
         {isEditingThis ? (
           <View style={styles.editBlock}>
-            <Text style={styles.formLabel}>Rating</Text>
+            <Text style={styles.formLabel}>Rating (optional if writing a review)</Text>
             <StarPicker value={editingRating} onSelect={setEditingRating} size={22} />
             <TextInput
               style={styles.textArea}
               value={editingText}
               onChangeText={setEditingText}
+              placeholder="Write your review (optional if star rating selected)..."
+              placeholderTextColor={COLORS.textMuted}
               multiline
               numberOfLines={3}
               maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
@@ -334,7 +335,9 @@ const AllReviewsModal = ({ visible, serviceId, onClose }) => {
             </View>
           </View>
         ) : (
-          <Text style={styles.reviewText}>{c.comment}</Text>
+          Boolean(c.comment && c.comment.trim()) && (
+            <Text style={styles.reviewText}>{c.comment}</Text>
+          )
         )}
 
         {/* Reply block */}
@@ -446,9 +449,9 @@ const AllReviewsModal = ({ visible, serviceId, onClose }) => {
     isSavingEdit,
     isSavingReply,
     isSubmittingReply,
-    replyText,          // <-- added
-    editingReplyText,   // <-- added
-    editingText,        // <-- added
+    replyText,
+    editingReplyText,
+    editingText,
   ]);
 
   return (

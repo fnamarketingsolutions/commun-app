@@ -13,6 +13,8 @@ import {
   Linking,
   Alert,
   Modal,
+  TextInput,
+  Platform,
   SafeAreaView as RNModalSafeArea,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -203,7 +205,7 @@ const VendorCard = ({ vendor, isOnline, onPress }) => {
   );
 };
 
-// ─── Category Chip (flat, no gradient) ──────────────────────────────────────
+// ─── Category Chip (Card with category name + vendor count) ─────────────────
 const CategoryChip = ({ label, count, active, onPress }) => {
   return (
     <TouchableOpacity
@@ -211,8 +213,18 @@ const CategoryChip = ({ label, count, active, onPress }) => {
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
-        {label} ({count})
+      <Text
+        style={[styles.chipTitle, active && styles.chipTitleActive]}
+        numberOfLines={1}
+        maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
+      >
+        {label}
+      </Text>
+      <Text
+        style={[styles.chipCount, active && styles.chipCountActive]}
+        maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
+      >
+        {count} {count === 1 ? 'vendor' : 'vendors'}
       </Text>
     </TouchableOpacity>
   );
@@ -222,10 +234,20 @@ const CategoryChip = ({ label, count, active, onPress }) => {
 const VendorsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { isOnline } = useNetworkStatus();
+
+  // ── Smart Search & Category state ──
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  // Debounce search input by 250ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const user = useSelector(state => state.auth.user);
   const userCommunityName = getUserCommunityName(user);
@@ -233,32 +255,47 @@ const VendorsScreen = ({ navigation }) => {
   const communityPending = useMemo(() => isCommunityPending(user), [user]);
   const shouldShowMissing = !isSecretary && !userCommunityName && !communityPending;
 
+  // ── Query args for smart search ──
+  const queryArgs = useMemo(() => {
+    const trimmed = debouncedSearch.trim();
+    return trimmed ? { search: trimmed } : undefined;
+  }, [debouncedSearch]);
+
   // ── RTK Query ──
-  const { data, isLoading, isFetching, refetch, error } = useCommunityVendorsQuery(undefined, {
+  const { data, isLoading, isFetching, refetch, error } = useCommunityVendorsQuery(queryArgs, {
     skip: !userCommunityName || shouldShowMissing,
   });
 
-const categories = data?.data?.categories || [];
-const vendorsByCategory = data?.data?.vendorsByCategory || {};
-const needsCommunity = data?.data?.needsCommunity || false;
+  const categories = data?.data?.categories || [];
+  const vendorsByCategory = data?.data?.vendorsByCategory || {};
+  const needsCommunity = data?.data?.needsCommunity || false;
 
+  // Filter categories having vendors and sort alphabetically (A-Z)
   const scopedCategories = useMemo(() => {
-    return categories.filter((cat) => (vendorsByCategory[cat] || []).length > 0);
+    const list = categories.filter((cat) => (vendorsByCategory[cat] || []).length > 0);
+    return list.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [categories, vendorsByCategory]);
 
-  // Auto-select first category
+  // Auto-select first category or adjust when search changes categories
   useEffect(() => {
-    if (scopedCategories.length > 0 && !selectedCategory) {
-      setSelectedCategory(scopedCategories[0]);
-    }
-    if (selectedCategory && !scopedCategories.includes(selectedCategory)) {
+    if (scopedCategories.length > 0) {
+      if (!selectedCategory || !scopedCategories.includes(selectedCategory)) {
+        setSelectedCategory(scopedCategories[0]);
+      }
+    } else {
       setSelectedCategory('');
     }
   }, [scopedCategories, selectedCategory]);
 
+  // Selected vendors sorted alphabetically by vendor name (A-Z)
   const selectedVendors = useMemo(() => {
     if (!selectedCategory) return [];
-    return vendorsByCategory[selectedCategory] || [];
+    const list = vendorsByCategory[selectedCategory] || [];
+    return [...list].sort((a, b) => {
+      const nameA = a?.name || '';
+      const nameB = b?.name || '';
+      return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+    });
   }, [vendorsByCategory, selectedCategory]);
 
   // ── Refresh ──
@@ -372,8 +409,8 @@ const needsCommunity = data?.data?.needsCommunity || false;
     );
   }
 
-  // ── Loading state ──
-  if (isLoading && !isFetching && scopedCategories.length === 0) {
+  // ── Loading state (initial load only) ──
+  if (isLoading && !isFetching && scopedCategories.length === 0 && !debouncedSearch) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
@@ -397,7 +434,7 @@ const needsCommunity = data?.data?.needsCommunity || false;
   }
 
   // ── Error state ──
-  if (error && !isLoading) {
+  if (error && !isLoading && scopedCategories.length === 0) {
     const errorMessage = error?.data?.message || error?.error || 'Failed to load vendors';
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -432,6 +469,7 @@ const needsCommunity = data?.data?.needsCommunity || false;
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
 
+      {/* ── Top Header ── */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -447,6 +485,54 @@ const needsCommunity = data?.data?.needsCommunity || false;
 
       <View style={styles.headerDivider} />
 
+      {/* ── Community Scope Subheader ── */}
+      {userCommunityName ? (
+        <View style={styles.communitySubheader}>
+          <Text style={styles.communitySubheaderText} numberOfLines={1}>
+            Showing vendors for <Text style={styles.communityHighlight}>{userCommunityName}</Text> only.
+          </Text>
+        </View>
+      ) : null}
+
+      {/* ── Smart Search Row (like Local Business) ── */}
+      <View style={styles.searchRowWrap}>
+        <View style={styles.searchWrap}>
+          <Icon
+            name="search-outline"
+            size={scaleFont(18)}
+            color={COLORS.textMuted}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search vendors by name, service..."
+            placeholderTextColor={COLORS.textMuted}
+            maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
+            editable={isOnline}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {isFetching && (
+            <ActivityIndicator
+              size="small"
+              color={COLORS.primaryLight}
+              style={{ marginRight: scaleWidth(6) }}
+            />
+          )}
+          {search.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearch('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.7}
+            >
+              <Icon name="close-circle" size={scaleFont(18)} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
       <NetworkAwareView isOnline={isOnline} showOfflineBanner={showOfflineBanner}>
         {needsCommunity && (
           <View style={styles.needsCommunityBanner}>
@@ -457,7 +543,29 @@ const needsCommunity = data?.data?.needsCommunity || false;
           </View>
         )}
 
-        {/* ── Categories horizontal scroll ── */}
+        {/* ── Categories Header with Refresh button ── */}
+        <View style={styles.categoriesHeaderWrap}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.categoriesTitle}>Categories</Text>
+            <Text style={styles.categoriesSubtitle}>Select your category to view vendors.</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={onRefresh}
+            disabled={!isOnline || refreshing || isFetching}
+            activeOpacity={0.7}
+          >
+            <Icon
+              name="reload-outline"
+              size={scaleFont(13)}
+              color={COLORS.primaryLight}
+              style={{ marginRight: scaleWidth(4) }}
+            />
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Categories horizontal cards ── */}
         <View style={styles.categoriesSection}>
           <ScrollView
             horizontal
@@ -466,9 +574,9 @@ const needsCommunity = data?.data?.needsCommunity || false;
           >
             {scopedCategories.length === 0 ? (
               <View style={styles.emptyChipsContainer}>
-                <Icon name="business-outline" size={scaleFont(24)} color={COLORS.textMuted} />
+                <Icon name="business-outline" size={scaleFont(22)} color={COLORS.textMuted} />
                 <Text style={styles.emptyChipsText} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
-                  No vendors in your community yet.
+                  {debouncedSearch ? 'No matching categories found.' : 'No vendors in your community yet.'}
                 </Text>
               </View>
             ) : (
@@ -489,7 +597,7 @@ const needsCommunity = data?.data?.needsCommunity || false;
           </ScrollView>
         </View>
 
-        {/* ── Vendor list ── */}
+        {/* ── Selected Category Heading & Vendor list ── */}
         <ScrollView
           style={styles.vendorsSection}
           showsVerticalScrollIndicator={false}
@@ -503,12 +611,34 @@ const needsCommunity = data?.data?.needsCommunity || false;
           }
           contentContainerStyle={{ paddingBottom: insets.bottom + moderateScale(30, 0.3) }}
         >
+          {selectedCategory ? (
+            <View style={styles.categoryHeadingBlock}>
+              <Text style={styles.categoryHeadingTitle}>
+                {selectedCategory} vendors
+              </Text>
+              <Text style={styles.categoryHeadingSubtitle}>
+                Tap Call / Email to contact directly.
+              </Text>
+            </View>
+          ) : null}
+
           {!selectedCategory ? (
             <View style={styles.emptyState}>
-              <Icon name="grid-outline" size={scaleFont(40)} color={COLORS.textMuted} />
+              <Icon name="search-outline" size={scaleFont(40)} color={COLORS.textMuted} />
               <Text style={styles.emptyStateText} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
-                Select a category above
+                {debouncedSearch
+                  ? `No vendors found matching "${debouncedSearch}"`
+                  : 'Select a category above'}
               </Text>
+              {debouncedSearch ? (
+                <TouchableOpacity
+                  style={styles.clearSearchBtn}
+                  onPress={() => setSearch('')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.clearSearchText}>Clear Search</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : selectedVendors.length === 0 ? (
             <View style={styles.emptyState}>
@@ -574,6 +704,79 @@ const styles = StyleSheet.create({
     height: moderateScale(1, 0.3),
     backgroundColor: COLORS.border,
   },
+  communitySubheader: {
+    paddingHorizontal: scaleWidth(20),
+    paddingTop: scaleHeight(10),
+    paddingBottom: scaleHeight(2),
+  },
+  communitySubheaderText: {
+    fontSize: scaleFont(13),
+    color: COLORS.textSecondary,
+  },
+  communityHighlight: {
+    fontWeight: FONTS.weightBold,
+    color: COLORS.primaryLight,
+  },
+  searchRowWrap: {
+    paddingHorizontal: scaleWidth(20),
+    paddingTop: scaleHeight(10),
+    paddingBottom: scaleHeight(6),
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: moderateScale(RADIUS.md, 0.3),
+    paddingHorizontal: scaleWidth(12),
+    paddingVertical: scaleHeight(Platform.OS === 'ios' ? 10 : 6),
+    ...SHADOW.card,
+    shadowOpacity: 0.04,
+    elevation: 1,
+  },
+  searchIcon: {
+    marginRight: scaleWidth(8),
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: scaleFont(14),
+    color: COLORS.textPrimary,
+    paddingVertical: 0,
+  },
+  categoriesHeaderWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: scaleWidth(20),
+    paddingTop: scaleHeight(12),
+    paddingBottom: scaleHeight(4),
+  },
+  categoriesTitle: {
+    fontSize: scaleFont(16),
+    fontWeight: FONTS.weightBold,
+    color: COLORS.textPrimary,
+  },
+  categoriesSubtitle: {
+    fontSize: scaleFont(12),
+    color: COLORS.textMuted,
+    marginTop: scaleHeight(2),
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#EDE9FE',
+    borderRadius: moderateScale(RADIUS.md, 0.3),
+    paddingHorizontal: scaleWidth(10),
+    paddingVertical: scaleHeight(6),
+  },
+  refreshButtonText: {
+    fontSize: scaleFont(12),
+    fontWeight: FONTS.weightSemiBold,
+    color: COLORS.primaryLight,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -613,7 +816,7 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(12, 0.3),
     padding: moderateScale(14, 0.3),
     marginHorizontal: scaleWidth(20),
-    marginTop: scaleHeight(12),
+    marginTop: scaleHeight(8),
   },
   needsCommunityText: {
     flex: 1,
@@ -623,33 +826,46 @@ const styles = StyleSheet.create({
   },
   categoriesSection: {
     paddingHorizontal: scaleWidth(20),
-    paddingTop: scaleHeight(16),
+    paddingTop: scaleHeight(8),
     paddingBottom: scaleHeight(8),
   },
   chipsContainer: {
-    gap: scaleWidth(8),
+    gap: scaleWidth(10),
     paddingVertical: scaleHeight(4),
   },
   chip: {
-    borderRadius: moderateScale(RADIUS.full, 0.3),
+    borderRadius: moderateScale(RADIUS.md, 0.3),
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.white,
     paddingHorizontal: scaleWidth(16),
-    paddingVertical: scaleHeight(8),
+    paddingVertical: scaleHeight(10),
+    minWidth: scaleWidth(120),
+    justifyContent: 'center',
+    ...SHADOW.card,
+    shadowOpacity: 0.03,
+    elevation: 1,
   },
   chipActive: {
-    borderColor: COLORS.primaryLight,
-    backgroundColor: '#F5F3FF',
+    borderColor: '#9333EA',
+    backgroundColor: '#9333EA',
   },
-  chipText: {
-    fontSize: scaleFont(13),
-    fontWeight: FONTS.weightMedium,
-    color: COLORS.textPrimary,
-  },
-  chipTextActive: {
+  chipTitle: {
+    fontSize: scaleFont(14),
     fontWeight: FONTS.weightBold,
-    color: COLORS.primaryLight,
+    color: COLORS.textPrimary,
+    marginBottom: scaleHeight(2),
+  },
+  chipTitleActive: {
+    color: COLORS.white,
+  },
+  chipCount: {
+    fontSize: scaleFont(11),
+    fontWeight: FONTS.weightMedium,
+    color: COLORS.textMuted,
+  },
+  chipCountActive: {
+    color: 'rgba(255,255,255,0.85)',
   },
   emptyChipsContainer: {
     flexDirection: 'row',
@@ -661,6 +877,20 @@ const styles = StyleSheet.create({
     fontSize: scaleFont(14),
     color: COLORS.textMuted,
   },
+  categoryHeadingBlock: {
+    paddingTop: scaleHeight(12),
+    paddingBottom: scaleHeight(6),
+  },
+  categoryHeadingTitle: {
+    fontSize: scaleFont(16),
+    fontWeight: FONTS.weightBold,
+    color: COLORS.textPrimary,
+  },
+  categoryHeadingSubtitle: {
+    fontSize: scaleFont(12),
+    color: COLORS.textMuted,
+    marginTop: scaleHeight(2),
+  },
   vendorsSection: {
     flex: 1,
     paddingHorizontal: scaleWidth(20),
@@ -669,7 +899,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: scaleHeight(60),
+    paddingVertical: scaleHeight(50),
     gap: scaleHeight(12),
   },
   emptyStateText: {
@@ -677,9 +907,23 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
   },
+  clearSearchBtn: {
+    marginTop: scaleHeight(6),
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#EDE9FE',
+    paddingHorizontal: scaleWidth(16),
+    paddingVertical: scaleHeight(8),
+    borderRadius: moderateScale(RADIUS.md, 0.3),
+  },
+  clearSearchText: {
+    fontSize: scaleFont(13),
+    fontWeight: FONTS.weightSemiBold,
+    color: COLORS.primaryLight,
+  },
   vendorsList: {
     rowGap: moderateScale(14, 0.3),
-    paddingTop: scaleHeight(8),
+    paddingTop: scaleHeight(6),
     paddingBottom: moderateScale(20, 0.3),
   },
 

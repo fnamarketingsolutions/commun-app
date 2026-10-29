@@ -76,7 +76,7 @@ const StarPicker = ({ value, onSelect, size = 24, disabled = false }) => (
     {[1, 2, 3, 4, 5].map((star) => (
       <TouchableOpacity
         key={star}
-        onPress={() => !disabled && onSelect(star)}
+        onPress={() => !disabled && onSelect(star === value ? 0 : star)}
         disabled={disabled}
         hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
         activeOpacity={0.7}>
@@ -181,16 +181,20 @@ const ReviewsSection = ({ serviceId, providerUserId }) => {
 
   const onSubmit = async () => {
     const trimmed = text.trim();
-    if (!rating || rating < 1 || rating > 5) {
-      Alert.alert('Rating required', 'Please select a rating (1-5 stars)');
+    const hasRating = rating >= 1 && rating <= 5;
+    const hasText = trimmed.length > 0;
+
+    if (!hasRating && !hasText) {
+      Alert.alert('Rating or Review Required', 'Please select a star rating or write a review comment (or both).');
       return;
     }
-    if (!trimmed) {
-      Alert.alert('Review required', 'Please write a review comment');
-      return;
-    }
+
     try {
-      await createComment({ serviceId, comment: trimmed, rating }).unwrap();
+      await createComment({
+        serviceId,
+        comment: trimmed,
+        rating: hasRating ? rating : undefined,
+      }).unwrap();
       setText('');
       setRating(0);
       setShowReviewForm(false);
@@ -201,26 +205,26 @@ const ReviewsSection = ({ serviceId, providerUserId }) => {
 
   const onStartEdit = (c) => {
     setEditingId(c._id);
-    setEditingText(c.comment);
+    setEditingText(c.comment || '');
     setEditingRating(c.rating || 0);
   };
 
   const onSaveEdit = async () => {
     const trimmed = editingText.trim();
-    if (!editingRating || editingRating < 1 || editingRating > 5) {
-      Alert.alert('Rating required', 'Please select a rating (1-5 stars)');
+    const hasRating = editingRating >= 1 && editingRating <= 5;
+    const hasText = trimmed.length > 0;
+
+    if (!hasRating && !hasText) {
+      Alert.alert('Rating or Review Required', 'Please select a star rating or write a review comment (or both).');
       return;
     }
-    if (!trimmed) {
-      Alert.alert('Review required', 'Please write a review comment');
-      return;
-    }
+
     try {
       await updateComment({
         commentId: editingId,
         serviceId,
         comment: trimmed,
-        rating: editingRating,
+        rating: hasRating ? editingRating : undefined,
       }).unwrap();
       setEditingId(null);
       setEditingText('');
@@ -344,15 +348,15 @@ const ReviewsSection = ({ serviceId, providerUserId }) => {
                 style={styles.primaryBtn}
                 activeOpacity={0.85}
                 onPress={() => setShowReviewForm(true)}>
-                <Text style={styles.primaryBtnText}>Write Review</Text>
+                <Text style={styles.primaryBtnText}>Rate or Review</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.formCard}>
-                <Text style={styles.formLabel}>Rating</Text>
+                <Text style={styles.formLabel}>Rating (optional if writing a review)</Text>
                 <StarPicker value={rating} onSelect={setRating} />
                 <TextInput
                   style={styles.textArea}
-                  placeholder="Write your review..."
+                  placeholder="Write your review (optional if star rating selected)..."
                   placeholderTextColor={COLORS.textMuted}
                   value={text}
                   onChangeText={setText}
@@ -379,7 +383,9 @@ const ReviewsSection = ({ serviceId, providerUserId }) => {
                     {isSubmitting ? (
                       <ActivityIndicator size="small" color={COLORS.white} />
                     ) : (
-                      <Text style={styles.primaryBtnText}>Submit Review</Text>
+                      <Text style={styles.primaryBtnText}>
+                        {rating > 0 && !text.trim() ? 'Submit Rating' : 'Submit Review'}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -442,12 +448,14 @@ const ReviewsSection = ({ serviceId, providerUserId }) => {
 
               {isEditingThis ? (
                 <View style={styles.editBlock}>
-                  <Text style={styles.formLabel}>Rating</Text>
+                  <Text style={styles.formLabel}>Rating (optional if writing a review)</Text>
                   <StarPicker value={editingRating} onSelect={setEditingRating} size={22} />
                   <TextInput
                     style={styles.textArea}
                     value={editingText}
                     onChangeText={setEditingText}
+                    placeholder="Write your review (optional if star rating selected)..."
+                    placeholderTextColor={COLORS.textMuted}
                     multiline
                     numberOfLines={3}
                     maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
@@ -470,7 +478,9 @@ const ReviewsSection = ({ serviceId, providerUserId }) => {
                   </View>
                 </View>
               ) : (
-                <Text style={styles.reviewText}>{c.comment}</Text>
+                Boolean(c.comment && c.comment.trim()) && (
+                  <Text style={styles.reviewText}>{c.comment}</Text>
+                )
               )}
 
               {/* Reply block */}

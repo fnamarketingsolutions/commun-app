@@ -320,6 +320,18 @@ const MembersScreen = () => {
 
           {/* Contact info */}
           <View style={styles.contactBlock}>
+            {!!(member.flatNumber || member.addressLine1 || member.city) && (
+              <View style={styles.contactRow}>
+                <Icon name="home-outline" size={scaleFont(16)} color={COLORS.textMuted} />
+                <Text
+                  style={[styles.contactText, !isOnline && { color: COLORS.textMuted }]}
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
+                >
+                  {[member.flatNumber ? 'Flat ' + member.flatNumber : '', member.addressLine1, member.city].filter(Boolean).join(', ')}
+                </Text>
+              </View>
+            )}
             <View style={styles.contactRow}>
               <Icon name="mail-outline" size={scaleFont(16)} color={COLORS.textMuted} />
               <Text

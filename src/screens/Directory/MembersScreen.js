@@ -307,7 +307,7 @@ const MemberCard = ({ member, isOnline, onPress }) => {
 
       <View style={styles.memberInfo}>
         <Text style={styles.memberName}>{fullName}</Text>
-        <Text style={styles.memberRole}>{member.role || 'Member'}</Text>
+        <Text style={styles.memberRole}>{member.role || 'Member'}{member.flatNumber ? ' • Flat ' + member.flatNumber : ''}</Text>
       </View>
 
       <View style={styles.memberActions}>

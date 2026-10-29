@@ -275,6 +275,41 @@ const MemberDetailScreen = () => {
             </View>
           </View>
 
+          {/* Address Details */}
+          {(!!member.flatNumber || !!member.addressLine1 || !!member.addressLine2 || !!member.city || !!member.state || !!member.zip || !!member.communityCommunName) && (
+            <View style={styles.infoSection}>
+              <Text style={styles.sectionLabel} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>Address Details</Text>
+              {!!member.flatNumber && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>Flat / House No.</Text>
+                  <Text style={styles.infoValue} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>{member.flatNumber}</Text>
+                </View>
+              )}
+              {!!(member.addressLine1 || member.addressLine2) && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>Street Address</Text>
+                  <Text style={styles.infoValue} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
+                    {[member.addressLine1, member.addressLine2].filter(Boolean).join(', ')}
+                  </Text>
+                </View>
+              )}
+              {!!(member.city || member.state || member.zip) && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>City / State / Zip</Text>
+                  <Text style={styles.infoValue} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
+                    {[member.city, member.state, member.zip].filter(Boolean).join(', ')}
+                  </Text>
+                </View>
+              )}
+              {!!member.communityCommunName && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>Community</Text>
+                  <Text style={styles.infoValue} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>{member.communityCommunName}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Additional Info */}
           <View style={styles.infoSection}>
             <Text style={styles.sectionLabel} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>Additional Details</Text>
@@ -282,12 +317,6 @@ const MemberDetailScreen = () => {
               <Text style={styles.infoLabel} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>Joined</Text>
               <Text style={styles.infoValue} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
                 {formatJoinedDate(member.createdAt)}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>Provider Handle</Text>
-              <Text style={styles.infoValue} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
-                {member.communName || '—'}
               </Text>
             </View>
           </View>

@@ -241,8 +241,12 @@ export const api = createApi({
 
     /** Fetch vendors for the user's community */
     communityVendors: builder.query({
-      query: () => {
-        const url = `${API_ROOT}/vendors/community`;
+      query: (arg) => {
+        let url = `${API_ROOT}/vendors/community`;
+        const search = typeof arg === 'string' ? arg : arg?.search;
+        if (search && search.trim()) {
+          url += `?search=${encodeURIComponent(search.trim())}`;
+        }
         return { url, method: 'GET' };
       },
       providesTags: ['Vendors'],
@@ -256,7 +260,7 @@ export const api = createApi({
 
     /** Fetch emergency contacts for the user's community */
     communityEmergencyContacts: builder.query({
-      query: () => {
+      query: (arg) => {
         const url = `${API_ROOT}/emergency-contacts/community`;
         return { url, method: 'GET' };
       },
@@ -271,7 +275,7 @@ export const api = createApi({
 
     /** Fetch directory members for the user's community */
     communityDirectory: builder.query({
-      query: () => {
+      query: (arg) => {
         const url = '/community-directory'; // relative, baseURL is /api/user
         return { url, method: 'GET' };
       },
