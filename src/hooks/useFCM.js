@@ -19,6 +19,8 @@ import {
 } from '../redux/service/api';
 import { addNotification } from '../redux/slices/notificationSlice';
 import { ROUTES } from '../navigations/routes';
+import { api } from '../redux/service/api';
+import { resolveNotificationRoute } from '../utils/notificationNavigation';
 
 const POST_NOTIFICATIONS = 'android.permission.POST_NOTIFICATIONS';
 

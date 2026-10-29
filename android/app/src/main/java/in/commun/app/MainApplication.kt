@@ -1,6 +1,10 @@
 package `in`.commun.app
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -23,5 +27,25 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     loadReactNative(this)
+    createNotificationChannels()
+  }
+
+  private fun createNotificationChannels() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val channelId = "default"
+      val channelName = "CommuN Notifications"
+      val channelDescription = "Community announcements, events, and updates"
+      val importance = NotificationManager.IMPORTANCE_HIGH
+
+      val channel = NotificationChannel(channelId, channelName, importance).apply {
+        description = channelDescription
+        enableVibration(true)
+        enableLights(true)
+        setShowBadge(true)
+      }
+
+      val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      notificationManager.createNotificationChannel(channel)
+    }
   }
 }

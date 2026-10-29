@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../utils/responsive';
 import { ROUTES } from '../navigations/routes';
+import { useGetInboxCountsQuery } from '../redux/service/api';
 import LocationEditModal from './LocationEditModal';
 
 const HomeHeader = () => {

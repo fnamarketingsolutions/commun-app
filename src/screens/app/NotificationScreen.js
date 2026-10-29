@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,43 +10,71 @@ import {
   Modal,
   ScrollView,
   Dimensions,
-  PanResponder,
-  Animated,
   useWindowDimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import {
   markAllAsRead,
-  markAsRead,             // <-- NEW action
-  removeNotification,
-  clearAllNotifications,
+  markAsRead,
 } from '../../redux/slices/notificationSlice';
+import {
+  useGetInboxNotificationsQuery,
+  useGetInboxCountsQuery,
+  useMarkNotificationReadMutation,
+  useMarkInboxReadMutation,
+} from '../../redux/service/api';
+import { resolveNotificationRoute } from '../../utils/notificationNavigation';
 import { COLORS, FONTS, SHADOW } from '../../theme';
 import { moderateScale, scaleFont, scaleWidth, scaleHeight } from '../../utils/responsive';
 
 const { width } = Dimensions.get('window');
 
-// ─── Time / Date helpers ──────────────────────────────────────────────────
-function formatTime(isoString) {
-  if (!isoString) return '';
-  const diff = Date.now() - new Date(isoString).getTime();
-  const mins  = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days  = Math.floor(diff / 86400000);
+const CATEGORIES = [
+  { key: '', label: 'All' },
+  { key: 'approvals', label: 'Approvals' },
+  { key: 'communities', label: 'Communities' },
+  { key: 'broadcast', label: 'Broadcast' },
+  { key: 'events', label: 'Events' },
+  { key: 'registration', label: 'Registration' },
+  { key: 'announcements', label: 'Announcements' },
+];
 
-  if (mins  < 1)   return 'Just now';
-  if (mins  < 60)  return `${mins}m ago`;
-  if (hours < 24)  return `${hours}h ago`;
-  if (days  < 7)   return `${days}d ago`;
-  return new Date(isoString).toLocaleDateString();
+const categoryLabels = {
+  approvals: 'Approvals',
+  communities: 'Communities',
+  broadcast: 'Broadcast',
+  events: 'Events',
+  registration: 'Registration',
+  announcements: 'Announcement',
+};
+
+// ─── Time / Date helpers ──────────────────────────────────────────────────
+function formatFullDate(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  if (isToday) {
+    return `Today, ${timeStr}`;
+  }
+
+  const day = date.getDate();
+  const month = date.toLocaleString('default', { month: 'short' });
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}, ${timeStr}`;
 }
 
 function getDateLabel(isoString) {
-  if (!isoString) return 'Unknown';
+  if (!isoString) return 'Recent';
   const now = new Date();
   const date = new Date(isoString);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -71,105 +99,85 @@ function groupByDate(notifications) {
   return groups;
 }
 
-// ─── Custom Swipeable Notification Item ──────────────────────────────────
-const SwipeableNotificationItem = ({ item, onPress, onRemove }) => {
-  const pan = useRef(new Animated.ValueXY()).current;
-  const [isSwiped, setIsSwiped] = useState(false);
+// ─── Notification Item ────────────────────────────────────────────────────
+const NotificationItem = ({ item, onPress }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 5,
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dx < 0) {
-          pan.setValue({ x: gestureState.dx, y: 0 });
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const threshold = -80;
-        if (gestureState.dx < threshold) {
-          Animated.spring(pan, {
-            toValue: { x: -80, y: 0 },
-            useNativeDriver: false,
-            bounciness: 5,
-          }).start();
-          setIsSwiped(true);
-        } else {
-          Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: false,
-            bounciness: 10,
-          }).start();
-          setIsSwiped(false);
-        }
-      },
-    })
-  ).current;
-
-  const handleDelete = () => {
-    Animated.timing(pan, {
-      toValue: { x: -width, y: 0 },
-      duration: 200,
-      useNativeDriver: false,
-    }).start(() => {
-      onRemove(item.id);
-    });
-  };
-
-  const handlePress = () => {
-    if (isSwiped) {
-      Animated.spring(pan, {
-        toValue: { x: 0, y: 0 },
-        useNativeDriver: false,
-        bounciness: 10,
-      }).start();
-      setIsSwiped(false);
-    } else {
-      onPress(item);
-    }
-  };
+  const categoryLabel = categoryLabels[item.category] || (item.category ? item.category.toUpperCase() : null);
+  const bodyText = String(item.body || '').trim();
+  const isLongText = bodyText.length > 85;
 
   return (
-    <View style={styles.swipeContainer}>
-      <Animated.View
-        style={[
-          styles.itemWrapper,
-          { transform: [{ translateX: pan.x }] },
-        ]}
-        {...panResponder.panHandlers}
+    <View style={styles.itemWrapper}>
+      <TouchableOpacity
+        style={[styles.itemCard, !item.isRead && styles.itemCardUnread]}
+        onPress={() => onPress(item)}
+        activeOpacity={0.8}
       >
-        <TouchableOpacity
-          style={[styles.item, !item.isRead && styles.itemUnread]}
-          onPress={handlePress}
-          activeOpacity={0.7}
-        >
-          <View style={styles.itemIconWrap}>
-            <Icon name="notifications-outline" size={scaleFont(20)} color={COLORS.gradientStart} />
-          </View>
-          <View style={styles.itemContent}>
+        {/* Header Row: Unread Dot + Title + Category Pill */}
+        <View style={styles.cardHeaderRow}>
+          <View
+            style={[
+              styles.unreadDot,
+              !item.isRead ? styles.unreadDotActive : styles.unreadDotInactive,
+            ]}
+          />
+          <Text
+            style={[styles.itemTitle, !item.isRead && styles.itemTitleUnread]}
+            numberOfLines={2}
+            maxFontSizeMultiplier={1.3}
+          >
+            {item.title}
+          </Text>
+          {categoryLabel ? (
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryPillText} maxFontSizeMultiplier={1}>
+                {categoryLabel}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Message Body with See More / See Less */}
+        {bodyText ? (
+          <View style={styles.bodyWrap}>
             <Text
-              style={[styles.itemTitle, !item.isRead && styles.itemTitleUnread]}
-              numberOfLines={1}
+              style={styles.itemBody}
+              numberOfLines={isExpanded ? undefined : 2}
               maxFontSizeMultiplier={1.3}
             >
-              {item.title}
+              {bodyText}
             </Text>
-            {item.body ? (
-              <Text style={styles.itemBody} numberOfLines={2} maxFontSizeMultiplier={1.3}>
-                {item.body}
-              </Text>
-            ) : null}
-            <Text style={styles.itemTime} maxFontSizeMultiplier={1.3}>
-              {formatTime(item.receivedAt)}
-            </Text>
+            {isLongText && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  setIsExpanded((prev) => !prev);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.seeMoreBtn}
+              >
+                <Text style={styles.seeMoreText}>
+                  {isExpanded ? 'See less' : 'See more'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-        </TouchableOpacity>
-      </Animated.View>
+        ) : null}
 
-      <TouchableOpacity style={styles.deleteAction} onPress={handleDelete} activeOpacity={0.8}>
-        <Icon name="trash-outline" size={scaleFont(22)} color={COLORS.white} />
-        <Text style={styles.deleteActionText} maxFontSizeMultiplier={1.3}>
-          Delete
-        </Text>
+        {/* Footer Row: Timestamp + Action Chevron */}
+        <View style={styles.cardFooterRow}>
+          <Text style={styles.itemTime} maxFontSizeMultiplier={1.3}>
+            {formatFullDate(item.receivedAt)}
+          </Text>
+
+          {item.destination ? (
+            <View style={styles.actionChip}>
+              <Text style={styles.actionChipText}>Open</Text>
+              <Icon name="arrow-forward" size={scaleFont(12)} color={COLORS.gradientStart} />
+            </View>
+          ) : null}
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -185,19 +193,23 @@ const SectionHeader = ({ title }) => (
 );
 
 // ─── Empty state ──────────────────────────────────────────────────────────
-const EmptyState = ({ searchQuery }) => (
+const EmptyState = ({ searchQuery, selectedCategory }) => (
   <View style={styles.emptyWrap}>
     <Icon name="notifications-off-outline" size={moderateScale(56, 0.3)} color={COLORS.textMuted} />
     <Text style={styles.emptyTitle} maxFontSizeMultiplier={1.3}>
-      {searchQuery ? 'No matching notifications' : 'No notifications yet'}
+      {searchQuery ? 'No matching notifications' : "You're all caught up!"}
     </Text>
     <Text style={styles.emptySubtitle} maxFontSizeMultiplier={1.3}>
-      {searchQuery ? 'Try a different keyword' : "You're all caught up!"}
+      {searchQuery
+        ? 'Try a different keyword.'
+        : selectedCategory
+        ? `No ${categoryLabels[selectedCategory] || selectedCategory} notifications found.`
+        : 'New announcements and community updates will appear here.'}
     </Text>
   </View>
 );
 
-// ─── Modal ────────────────────────────────────────────────────────────────
+// ─── Detail Modal (Fallback when item has no route) ───────────────────────
 const NotificationModal = ({ visible, item, onClose }) => {
   if (!item) return null;
 
@@ -215,11 +227,16 @@ const NotificationModal = ({ visible, item, onClose }) => {
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
+            {item.category ? (
+              <View style={[styles.categoryPill, { alignSelf: 'flex-start', marginBottom: scaleHeight(8) }]}>
+                <Text style={styles.categoryPillText}>{categoryLabels[item.category] || item.category}</Text>
+              </View>
+            ) : null}
             <Text style={styles.modalBody} maxFontSizeMultiplier={1.3}>
               {item.body || 'No additional details.'}
             </Text>
             <Text style={styles.modalTime} maxFontSizeMultiplier={1.3}>
-              {formatTime(item.receivedAt)}
+              {formatFullDate(item.receivedAt)}
             </Text>
           </ScrollView>
         </View>
@@ -231,24 +248,71 @@ const NotificationModal = ({ visible, item, onClose }) => {
 // ─── Main Screen ───────────────────────────────────────────────────────────
 const NotificationScreen = ({ navigation }) => {
   const dispatch = useDispatch();
-  // N1 FIX: Reactive width for modal card and any layout dependent on screen width
   const { width } = useWindowDimensions();
-  const notifications = useSelector((state) => state.notifications.items);
 
+  // Redux local fallback items
+  const localNotifications = useSelector((state) => state.notifications.items);
+
+  // Category state
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [serverItems, setServerItems] = useState([]);
 
-  // ── Logging ──
+  // Server API Queries & Mutations
+  const {
+    data: inboxData,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useGetInboxNotificationsQuery({ page, limit: 20, category: selectedCategory });
+
+  const { data: countsData } = useGetInboxCountsQuery();
+  const [markNotificationReadMutation] = useMarkNotificationReadMutation();
+  const [markInboxReadMutation] = useMarkInboxReadMutation();
+
+  const unreadCounts = countsData?.data?.counts || {};
+  const hasNextPage = Boolean(inboxData?.data?.pagination?.hasNextPage);
+
+  // Sync server notifications into accumulated list
   useEffect(() => {
-  }, [notifications]);
+    if (inboxData?.data?.notifications) {
+      const formatted = inboxData.data.notifications.map((item) => ({
+        id: item._id,
+        _id: item._id,
+        title: item.title,
+        body: item.message,
+        category: item.category,
+        destination: item.destination,
+        isRead: Boolean(item.readAt),
+        receivedAt: item.createdAt,
+      }));
 
-  // ── We no longer mark all as read on focus ──
-  // ── Instead, unread items stay bold until tapped ──
+      setServerItems((prev) => {
+        if (page === 1) return formatted;
+        const existingIds = new Set(prev.map((n) => n.id));
+        const newOnes = formatted.filter((n) => !existingIds.has(n.id));
+        return [...prev, ...newOnes];
+      });
+    }
+  }, [inboxData, page]);
 
-  // ── Filter by search ──
+  // Combined notifications (Server + local Redux)
+  const combinedNotifications = useMemo(() => {
+    if (serverItems.length > 0) {
+      return serverItems;
+    }
+    if (selectedCategory) {
+      return localNotifications.filter((n) => n.category === selectedCategory);
+    }
+    return localNotifications;
+  }, [serverItems, localNotifications, selectedCategory]);
+
+  // Filter by search
   const filtered = useMemo(() => {
-    let result = notifications;
+    let result = combinedNotifications;
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       result = result.filter(
@@ -258,53 +322,10 @@ const NotificationScreen = ({ navigation }) => {
       );
     }
     return result;
-  }, [notifications, searchQuery]);
+  }, [combinedNotifications, searchQuery]);
 
-  // ── Group by date ──
+  // Group by date
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
-
-  // ── Handlers ──
-  const handleRemove = useCallback((id) => {
-    dispatch(removeNotification(id));
-  }, [dispatch]);
-
-  const handleClearAll = useCallback(() => {
-    dispatch(clearAllNotifications());
-  }, [dispatch]);
-
-  // ── Mark as read and open modal ──
-  const handleItemPress = useCallback((item) => {
-    // Mark as read immediately
-    if (!item.isRead) {
-      dispatch(markAsRead(item.id));
-    }
-    setSelectedNotification(item);
-    setModalVisible(true);
-  }, [dispatch]);
-
-  const closeModal = useCallback(() => {
-    setModalVisible(false);
-    setSelectedNotification(null);
-  }, []);
-
-  // ── Render sections ──
-  const renderSection = useCallback(({ item }) => {
-    const { title, data } = item;
-    if (!title || !data || data.length === 0) return null;
-    return (
-      <View>
-        <SectionHeader title={title} />
-        {data.map((notif) => (
-          <SwipeableNotificationItem
-            key={notif.id}
-            item={notif}
-            onPress={handleItemPress}
-            onRemove={handleRemove}
-          />
-        ))}
-      </View>
-    );
-  }, [handleItemPress, handleRemove]);
 
   const sections = useMemo(() => {
     return Object.keys(grouped).map((key) => ({
@@ -313,7 +334,79 @@ const NotificationScreen = ({ navigation }) => {
     }));
   }, [grouped]);
 
-  // ── Render ──
+  // Handlers
+  const handleCategorySelect = (key) => {
+    if (key === selectedCategory) return;
+    setSelectedCategory(key);
+    setPage(1);
+    setServerItems([]);
+  };
+
+  const handleRefresh = useCallback(() => {
+    setPage(1);
+    refetch();
+  }, [refetch]);
+
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetching) {
+      setPage((prev) => prev + 1);
+    }
+  }, [hasNextPage, isFetching]);
+
+  const handleMarkAllRead = useCallback(async () => {
+    try {
+      await markInboxReadMutation(selectedCategory || undefined).unwrap();
+    } catch (_) {}
+    dispatch(markAllAsRead());
+    setServerItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
+  }, [markInboxReadMutation, selectedCategory, dispatch]);
+
+  const handleItemPress = useCallback(async (item) => {
+    // 1. Mark as read on server & local Redux
+    if (!item.isRead) {
+      try {
+        if (item._id) {
+          await markNotificationReadMutation(item._id).unwrap();
+        }
+      } catch (_) {}
+      dispatch(markAsRead(item.id));
+      setServerItems((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+      );
+    }
+
+    // 2. Resolve destination route
+    const route = resolveNotificationRoute(item);
+    if (route && route.routeName) {
+      navigation.navigate(route.routeName, route.params);
+    } else {
+      setSelectedNotification(item);
+      setModalVisible(true);
+    }
+  }, [markNotificationReadMutation, dispatch, navigation]);
+
+  const closeModal = useCallback(() => {
+    setModalVisible(false);
+    setSelectedNotification(null);
+  }, []);
+
+  const renderSection = useCallback(({ item }) => {
+    const { title, data } = item;
+    if (!title || !data || data.length === 0) return null;
+    return (
+      <View>
+        <SectionHeader title={title} />
+        {data.map((notif) => (
+          <NotificationItem
+            key={notif.id}
+            item={notif}
+            onPress={handleItemPress}
+          />
+        ))}
+      </View>
+    );
+  }, [handleItemPress]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} translucent={false} />
@@ -333,15 +426,47 @@ const NotificationScreen = ({ navigation }) => {
           Notifications
         </Text>
 
-        {notifications.length > 0 ? (
-          <TouchableOpacity style={styles.clearBtn} onPress={handleClearAll} activeOpacity={0.7}>
-            <Text style={styles.clearBtnText} maxFontSizeMultiplier={1.3}>
-              Clear all
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.clearBtnPlaceholder} />
-        )}
+        <TouchableOpacity style={styles.clearBtn} onPress={handleMarkAllRead} activeOpacity={0.7}>
+          <Text style={styles.clearBtnText} maxFontSizeMultiplier={1.3}>
+            Mark all read
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Category Tabs */}
+      <View style={styles.categoriesWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesContent}
+        >
+          {CATEGORIES.map((cat) => {
+            const isSelected = selectedCategory === cat.key;
+            const count = cat.key ? unreadCounts[cat.key] || 0 : 0;
+            return (
+              <TouchableOpacity
+                key={cat.key || 'all'}
+                style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
+                onPress={() => handleCategorySelect(cat.key)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[styles.categoryChipText, isSelected && styles.categoryChipTextActive]}
+                  maxFontSizeMultiplier={1.2}
+                >
+                  {cat.label}
+                </Text>
+                {count > 0 ? (
+                  <View style={[styles.chipBadge, isSelected && styles.chipBadgeActive]}>
+                    <Text style={[styles.chipBadgeText, isSelected && styles.chipBadgeTextActive]}>
+                      {count > 99 ? '99+' : count}
+                    </Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Search Input */}
@@ -367,9 +492,35 @@ const NotificationScreen = ({ navigation }) => {
         data={sections}
         renderItem={renderSection}
         keyExtractor={(item) => item.title}
-        ListEmptyComponent={<EmptyState searchQuery={searchQuery} />}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color={COLORS.gradientStart} />
+              <Text style={styles.loadingText}>Loading notifications...</Text>
+            </View>
+          ) : (
+            <EmptyState searchQuery={searchQuery} selectedCategory={selectedCategory} />
+          )
+        }
         contentContainerStyle={sections.length === 0 ? styles.emptyContainer : styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && page === 1}
+            onRefresh={handleRefresh}
+            colors={[COLORS.gradientStart]}
+            tintColor={COLORS.gradientStart}
+          />
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          isFetching && page > 1 ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator size="small" color={COLORS.gradientStart} />
+            </View>
+          ) : null
+        }
       />
 
       {/* Modal */}
@@ -378,11 +529,11 @@ const NotificationScreen = ({ navigation }) => {
   );
 };
 
-// ─── Styles (unchanged) ──────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#F9FAFB',
   },
 
   header: {
@@ -407,15 +558,60 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   clearBtn: {
-    width: moderateScale(64, 0.3),
     alignItems: 'flex-end',
-  },
-  clearBtnPlaceholder: {
-    width: moderateScale(64, 0.3),
   },
   clearBtnText: {
     fontSize: scaleFont(13),
     fontWeight: FONTS.weightSemiBold,
+    color: COLORS.gradientStart,
+  },
+
+  categoriesWrapper: {
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.inputBg,
+  },
+  categoriesContent: {
+    paddingHorizontal: scaleWidth(12),
+    paddingVertical: scaleHeight(10),
+    gap: scaleWidth(8),
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: scaleWidth(12),
+    paddingVertical: scaleHeight(6),
+    borderRadius: moderateScale(20, 0.3),
+    backgroundColor: '#F3F4F6',
+  },
+  categoryChipActive: {
+    backgroundColor: COLORS.gradientStart,
+  },
+  categoryChipText: {
+    fontSize: scaleFont(12),
+    fontWeight: FONTS.weightMedium,
+    color: COLORS.textSecondary,
+  },
+  categoryChipTextActive: {
+    color: COLORS.white,
+    fontWeight: FONTS.weightBold,
+  },
+  chipBadge: {
+    backgroundColor: COLORS.gradientStart,
+    borderRadius: moderateScale(10, 0.3),
+    paddingHorizontal: scaleWidth(5),
+    paddingVertical: scaleHeight(1),
+    marginLeft: scaleWidth(6),
+  },
+  chipBadgeActive: {
+    backgroundColor: COLORS.white,
+  },
+  chipBadgeText: {
+    fontSize: scaleFont(10),
+    fontWeight: FONTS.weightBold,
+    color: COLORS.white,
+  },
+  chipBadgeTextActive: {
     color: COLORS.gradientStart,
   },
 
@@ -433,120 +629,173 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: scaleFont(15),
+    fontSize: scaleFont(14),
     color: COLORS.textPrimary,
-    paddingVertical: scaleHeight(6),
+    paddingVertical: scaleHeight(4),
   },
 
   listContent: {
-    paddingBottom: scaleHeight(16),
+    paddingHorizontal: scaleWidth(12),
+    paddingTop: scaleHeight(8),
+    paddingBottom: scaleHeight(32),
   },
   emptyContainer: {
     flex: 1,
   },
 
   sectionHeader: {
-    paddingHorizontal: scaleWidth(16),
+    paddingHorizontal: scaleWidth(4),
     paddingVertical: scaleHeight(8),
-    backgroundColor: COLORS.white,
+    marginTop: scaleHeight(4),
   },
   sectionHeaderText: {
-    fontSize: scaleFont(13),
+    fontSize: scaleFont(12),
     fontWeight: FONTS.weightSemiBold,
     color: COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: moderateScale(0.3, 0.1),
   },
 
-  swipeContainer: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
   itemWrapper: {
-    zIndex: 2,
-    backgroundColor: COLORS.white,
+    marginBottom: scaleHeight(10),
   },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: scaleWidth(16),
+
+  // ── Card Design matching Web Screenshot ──
+  itemCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(16, 0.3),
+    paddingHorizontal: scaleWidth(14),
     paddingVertical: scaleHeight(14),
-    backgroundColor: COLORS.white,
-  },
-  itemUnread: {
-    backgroundColor: '#F5F3FF',
-  },
-  itemIconWrap: {
-    width: moderateScale(36, 0.3),
-    height: moderateScale(36, 0.3),
-    borderRadius: moderateScale(18, 0.3),
-    backgroundColor: COLORS.white,
     borderWidth: 1,
-    borderColor: COLORS.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: scaleWidth(12),
-    marginTop: scaleHeight(2),
+    borderColor: '#E5E7EB',
+    ...SHADOW.card,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  itemContent: {
+  itemCardUnread: {
+    backgroundColor: '#FAF5FF', // Subtle light purple tint
+    borderColor: '#E9D5FF',     // Purple 200 border
+  },
+
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: scaleHeight(6),
+  },
+  unreadDot: {
+    width: moderateScale(8, 0.3),
+    height: moderateScale(8, 0.3),
+    borderRadius: moderateScale(4, 0.3),
+    marginRight: scaleWidth(8),
+  },
+  unreadDotActive: {
+    backgroundColor: COLORS.gradientStart,
+  },
+  unreadDotInactive: {
+    backgroundColor: 'transparent',
+  },
+  itemTitle: {
+    fontSize: scaleFont(15),
+    fontWeight: FONTS.weightSemiBold,
+    color: COLORS.textPrimary,
     flex: 1,
     marginRight: scaleWidth(8),
   },
-  itemTitle: {
-    fontSize: scaleFont(14),
-    fontWeight: FONTS.weightSemiBold,
-    color: COLORS.textMuted,
-    marginBottom: scaleHeight(2),
-  },
   itemTitleUnread: {
-    color: COLORS.textPrimary,
     fontWeight: FONTS.weightBold,
+  },
+
+  categoryPill: {
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: scaleWidth(7),
+    paddingVertical: scaleHeight(2),
+    borderRadius: moderateScale(6, 0.3),
+  },
+  categoryPillText: {
+    fontSize: scaleFont(10),
+    fontWeight: FONTS.weightBold,
+    color: COLORS.gradientStart,
+    textTransform: 'uppercase',
+  },
+
+  bodyWrap: {
+    marginBottom: scaleHeight(6),
+    paddingLeft: scaleWidth(16),
   },
   itemBody: {
     fontSize: scaleFont(13),
     fontWeight: FONTS.weightRegular,
-    color: COLORS.textMuted,
+    color: '#4B5563', // Slate 600
     lineHeight: scaleFont(19),
-    marginBottom: scaleHeight(4),
+  },
+  seeMoreBtn: {
+    marginTop: scaleHeight(4),
+    alignSelf: 'flex-start',
+  },
+  seeMoreText: {
+    fontSize: scaleFont(12),
+    fontWeight: FONTS.weightSemiBold,
+    color: COLORS.gradientStart,
+  },
+
+  cardFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: scaleWidth(16),
+    marginTop: scaleHeight(4),
   },
   itemTime: {
     fontSize: scaleFont(11),
     color: COLORS.textMuted,
   },
-
-  deleteAction: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: moderateScale(80, 0.3),
-    backgroundColor: '#EF4444',
-    justifyContent: 'center',
+  actionChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 1,
+    gap: scaleWidth(3),
   },
-  deleteActionText: {
-    color: COLORS.white,
-    fontSize: scaleFont(12),
-    fontWeight: FONTS.weightMedium,
-    marginTop: scaleHeight(2),
+  actionChipText: {
+    fontSize: scaleFont(11),
+    fontWeight: FONTS.weightSemiBold,
+    color: COLORS.gradientStart,
   },
 
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: scaleHeight(120),
-    gap: scaleHeight(12),
+    paddingTop: scaleHeight(100),
+    gap: scaleHeight(10),
+    paddingHorizontal: scaleWidth(24),
   },
   emptyTitle: {
-    fontSize: scaleFont(17),
+    fontSize: scaleFont(16),
     fontWeight: FONTS.weightBold,
     color: COLORS.textPrimary,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: scaleFont(13),
     color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: scaleFont(19),
+  },
+
+  loadingWrap: {
+    paddingTop: scaleHeight(80),
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scaleHeight(12),
+  },
+  loadingText: {
+    fontSize: scaleFont(14),
+    color: COLORS.textMuted,
+  },
+  footerLoader: {
+    paddingVertical: scaleHeight(16),
+    alignItems: 'center',
   },
 
   modalOverlay: {
@@ -558,7 +807,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: COLORS.white,
     borderRadius: moderateScale(20, 0.3),
-    padding: moderateScale(24, 0.3),
+    padding: moderateScale(22, 0.3),
     width: width * 0.9,
     maxHeight: '70%',
     ...SHADOW.card,
@@ -578,10 +827,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: scaleHeight(12),
+    marginBottom: scaleHeight(10),
   },
   modalTitle: {
-    fontSize: scaleFont(18),
+    fontSize: scaleFont(17),
     fontWeight: FONTS.weightBold,
     color: COLORS.textPrimary,
     flex: 1,
@@ -591,9 +840,9 @@ const styles = StyleSheet.create({
     padding: moderateScale(4, 0.3),
   },
   modalBody: {
-    fontSize: scaleFont(15),
+    fontSize: scaleFont(14),
     color: COLORS.textSecondary,
-    lineHeight: moderateScale(22, 0.3),
+    lineHeight: moderateScale(21, 0.3),
     marginBottom: scaleHeight(12),
   },
   modalTime: {

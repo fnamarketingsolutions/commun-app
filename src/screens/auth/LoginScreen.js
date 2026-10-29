@@ -70,6 +70,15 @@ const LoginScreen = ({ navigation }) => {
   const [otp, setOtp] = useState('');
   const [resendSeconds, setResendSeconds] = useState(0);
 
+  useEffect(() => {
+    if (otpStep) {
+      const timer = setTimeout(() => {
+        otpInputRef.current?.focus();
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [otpStep]);
+
   // ── Resend countdown ──────────────────────────────────────────────────────
   useEffect(() => {
     if (resendSeconds <= 0) return;
@@ -103,6 +112,7 @@ const LoginScreen = ({ navigation }) => {
   // ── Scroll + input refs, so we can bring a focused field above the keyboard ─
   const scrollRef = useRef(null);
   const passwordInputRef = useRef(null);
+  const otpInputRef = useRef(null);
   const passwordFieldY = useRef(0);
 
   // ── Cleanup timer on unmount ──────────────────────────────────────────────
@@ -373,33 +383,59 @@ const LoginScreen = ({ navigation }) => {
                   {otpStep && (
                     <>
                       <Text style={styles.label} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
-                        Enter OTP
+                        Enter 6-Digit OTP
                       </Text>
-                      <LinearGradient
-                        colors={gradientColors}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[
-                          styles.gradientBorder,
-                          focusedField === 'otp' && styles.gradientBorderFocused,
-                        ]}
+
+                      {/* ── 6-Box Hotstar-style OTP Input ── */}
+                      <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={() => otpInputRef.current?.focus()}
+                        style={styles.otpContainer}
                       >
-                        <View style={styles.inputInnerContainer}>
-                          <TextInput
-                            style={[styles.input, { flex: 1, letterSpacing: moderateScale(4, 0.2) }]}
-                            placeholder="------"
-                            placeholderTextColor={COLORS.textMuted}
-                            value={otp}
-                            onChangeText={(t) => setOtp(t.replace(/\D/g, '').slice(0, 6))}
-                            onFocus={() => setFocused('otp')}
-                            onBlur={() => setFocused(null)}
-                            keyboardType="number-pad"
-                            editable={!isLoading && isOnline}
-                            maxLength={6}
-                            maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
-                          />
+                        <View style={styles.otpBoxesRow}>
+                          {[0, 1, 2, 3, 4, 5].map((index) => {
+                            const digit = otp[index] || '';
+                            const isCurrentBox =
+                              focusedField === 'otp' &&
+                              (otp.length === index || (index === 5 && otp.length === 6));
+
+                            return (
+                              <View
+                                key={index}
+                                style={[
+                                  styles.otpBox,
+                                  digit ? styles.otpBoxFilled : null,
+                                  isCurrentBox ? styles.otpBoxFocused : null,
+                                ]}
+                              >
+                                {digit ? (
+                                  <Text style={styles.otpDigit} maxFontSizeMultiplier={1.2}>
+                                    {digit}
+                                  </Text>
+                                ) : isCurrentBox ? (
+                                  <View style={styles.otpCursor} />
+                                ) : null}
+                              </View>
+                            );
+                          })}
                         </View>
-                      </LinearGradient>
+
+                        {/* Hidden TextInput handling keyboard input, backspace & SMS autofill */}
+                        <TextInput
+                          ref={otpInputRef}
+                          style={styles.hiddenInput}
+                          value={otp}
+                          onChangeText={(t) => setOtp(t.replace(/\D/g, '').slice(0, 6))}
+                          onFocus={() => setFocused('otp')}
+                          onBlur={() => setFocused(null)}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                          textContentType="oneTimeCode"
+                          autoComplete="sms-otp"
+                          editable={!isLoading && isOnline}
+                          caretHidden
+                        />
+                      </TouchableOpacity>
 
                       <View style={styles.otpActions}>
                         <TouchableOpacity

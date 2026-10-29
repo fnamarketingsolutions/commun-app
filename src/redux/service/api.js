@@ -15,6 +15,8 @@ const USER_SCOPED_TAGS = [
   'Directory',
   'Services',
   'Wishlist',
+  'InboxNotifications',
+  'InboxCounts',
 ];
 
 export const api = createApi({
@@ -338,6 +340,44 @@ export const api = createApi({
 
 
 
+    // ── In-App Notifications / Inbox ──────────────────────────────────────────
+    getInboxNotifications: builder.query({
+      query: ({ page = 1, limit = 20, category = '' } = {}) => {
+        let url = `/inbox?page=${page}&limit=${limit}`;
+        if (category) url += `&category=${encodeURIComponent(category)}`;
+        return {
+          url,
+          method: 'GET',
+        };
+      },
+      providesTags: ['InboxNotifications'],
+    }),
+
+    getInboxCounts: builder.query({
+      query: () => ({
+        url: '/inbox/counts',
+        method: 'GET',
+      }),
+      providesTags: ['InboxCounts'],
+    }),
+
+    markNotificationRead: builder.mutation({
+      query: (notificationId) => ({
+        url: `/inbox/${notificationId}/read`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: ['InboxCounts', 'InboxNotifications'],
+    }),
+
+    markInboxRead: builder.mutation({
+      query: (category) => ({
+        url: '/inbox/mark-read',
+        method: 'POST',
+        data: category ? { category } : {},
+      }),
+      invalidatesTags: ['InboxCounts', 'InboxNotifications'],
+    }),
+
     /** Fetch a single service by ID (public) */
     getServiceById: builder.query({
       query: (serviceId) => ({
@@ -394,4 +434,10 @@ export const {
   useLazyGetServiceByIdQuery,
   useRegisterMobilePushMutation,
   useUnregisterMobilePushMutation,
+  useGetInboxNotificationsQuery,
+  useLazyGetInboxNotificationsQuery,
+  useGetInboxCountsQuery,
+  useLazyGetInboxCountsQuery,
+  useMarkNotificationReadMutation,
+  useMarkInboxReadMutation,
 } = api;
