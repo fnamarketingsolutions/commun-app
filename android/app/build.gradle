@@ -69,6 +69,12 @@ android {
         }
     }
 
+    externalNativeBuild {
+        cmake {
+            buildStagingDirectory file("C:/cxx")
+        }
+    }
+
     packaging {
         resources {
             excludes += [
