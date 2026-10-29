@@ -33,6 +33,7 @@ const getRouteFromTag = (tag) => {
     approvals: ROUTES.APPROVE_PROVIDER,
     communities: ROUTES.COMMUNITY_MANAGEMENT,
     events: ROUTES.PROVIDER_EVENTS,
+    broadcast: ROUTES.PROVIDER_BROADCAST,
     registration: ROUTES.COMMUNITY_MEMBERS,
     'registration-approved': ROUTES.TABS,
     'registration-rejected': ROUTES.PENDING,
@@ -137,8 +138,13 @@ export function useFCM(navigationRef) {
 
   // ── Navigate on notification tap ──────────────────────────────────────
   const handleNotificationPress = useCallback((remoteMessage) => {
-    const tag = remoteMessage?.data?.tag;
-    const route = getRouteFromTag(tag);
+    if (!remoteMessage) return;
+    const data = remoteMessage.data || {};
+    const route = resolveNotificationRoute({
+      destination: data.url || data.destination || data.link,
+      tag: data.tag,
+      category: data.category,
+    }) || getRouteFromTag(data.tag);
     if (!route) return;
     navigateWhenReady(navigationRef, route.routeName, route.params);
   }, [navigationRef]);
@@ -152,18 +158,11 @@ export function useFCM(navigationRef) {
     let timerHandle = null;
 
     // ── Teardown ──────────────────────────────────────────────────────────
-    const teardown = async () => {
+    const teardown = () => {
       unsubscribersRef.current.forEach((unsub) => {
         try { unsub(); } catch (_) { }
       });
       unsubscribersRef.current = [];
-
-      const token = tokenRef.current;
-      tokenRef.current = null;
-      if (!token) return;
-
-      try { await unregisterMobilePush({ token }).unwrap(); } catch (_) { }
-      try { await deleteToken(messaging); } catch (_) { }
     };
 
     // ── Setup ─────────────────────────────────────────────────────────────

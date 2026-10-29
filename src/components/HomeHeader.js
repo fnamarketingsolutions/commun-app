@@ -21,11 +21,21 @@ const HomeHeader = () => {
   const navigation = useNavigation();
   const user        = useSelector((state) => state.auth.user);
 
-  // ── Unread notification count ──────────────────────────────────────────
-  const unreadCount = useSelector(
+  // ── Unread notification count (Synced with Server & Fallback) ───────────
+  const { data: inboxCountsData } = useGetInboxCountsQuery(undefined, {
+    pollingInterval: 15000,
+  });
+  const serverCounts = inboxCountsData?.data?.counts;
+  const serverTotalUnread = serverCounts
+    ? Object.values(serverCounts).reduce((total, count) => total + Number(count || 0), 0)
+    : null;
+
+  const localUnreadCount = useSelector(
     (state) => state.notifications.items.filter((n) => !n.isRead).length
   );
-  const badgeCount = unreadCount > 9 ? '9+' : unreadCount > 0 ? String(unreadCount) : null;
+
+  const unreadCount = serverTotalUnread !== null ? serverTotalUnread : localUnreadCount;
+  const badgeCount = unreadCount > 99 ? '99+' : unreadCount > 0 ? String(unreadCount) : null;
 
   // ── Location edit modal ────────────────────────────────────────────────
   const [locationModalVisible, setLocationModalVisible] = useState(false);

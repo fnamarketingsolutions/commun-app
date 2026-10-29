@@ -41,7 +41,7 @@ export function resolveNotificationRoute(notification = {}) {
       };
     }
     if (cleanDestination.includes('/community/events') || cleanDestination.includes('/events')) {
-      return { routeName: ROUTES.COMMUNITY_EVENT };
+      return { routeName: ROUTES.PROVIDER_EVENTS };
     }
 
     // Community Broadcast: /community/broadcast or /broadcast/:id
@@ -53,7 +53,7 @@ export function resolveNotificationRoute(notification = {}) {
       };
     }
     if (cleanDestination.includes('/community/broadcast') || cleanDestination.includes('/broadcast')) {
-      return { routeName: ROUTES.ALL_BROADCAST };
+      return { routeName: ROUTES.PROVIDER_BROADCAST };
     }
 
     // Pending approval
@@ -76,8 +76,9 @@ export function resolveNotificationRoute(notification = {}) {
   if (cleanTag) {
     const exactMap = {
       approvals: ROUTES.APPROVE_PROVIDER,
-      communities: ROUTES.COMMUNITY_MANAGEMENT,
-      events: ROUTES.COMMUNITY_EVENT,
+      communities: ROUTES.COMMUNITY_CHAT,
+      events: ROUTES.PROVIDER_EVENTS,
+      broadcast: ROUTES.PROVIDER_BROADCAST,
       registration: ROUTES.COMMUNITY_MEMBERS,
       'registration-approved': ROUTES.TABS,
       'registration-rejected': ROUTES.PENDING,
@@ -130,9 +131,9 @@ export function resolveNotificationRoute(notification = {}) {
     case 'communities':
       return { routeName: ROUTES.COMMUNITY_CHAT };
     case 'events':
-      return { routeName: ROUTES.COMMUNITY_EVENT };
+      return { routeName: ROUTES.PROVIDER_EVENTS };
     case 'broadcast':
-      return { routeName: ROUTES.ALL_BROADCAST };
+      return { routeName: ROUTES.PROVIDER_BROADCAST };
     case 'registration':
       return { routeName: ROUTES.TABS };
     case 'announcements':
@@ -141,4 +142,3 @@ export function resolveNotificationRoute(notification = {}) {
       return null;
   }
 }
-
