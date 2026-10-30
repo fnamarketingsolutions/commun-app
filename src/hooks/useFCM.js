@@ -249,7 +249,9 @@ export function useFCM(navigationRef) {
     return () => {
       isActive = false;
       if (timerHandle) clearTimeout(timerHandle);
-      teardown().catch(() => { });
+      try {
+        teardown();
+      } catch (_) { }
     };
   }, [isLoggedIn, handleNotificationPress, registerMobilePush, unregisterMobilePush, dispatch]);
 }
