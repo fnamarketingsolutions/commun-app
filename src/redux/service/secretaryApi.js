@@ -58,6 +58,7 @@ export const secretaryApi = createApi({
     'Broadcasts',
     'CategoryToggles',
     'SecretaryVendors',
+    'VendorCategories',
     'SecretaryEmergencyContacts',
     'SecretaryReviews',
     'BusinessCategories',
@@ -308,8 +309,33 @@ export const secretaryApi = createApi({
     }),
 
     // ─── Vendors ──────────────────────────────────────────────────────────
+    fetchVendorCategories: builder.query({
+      query: () => ({ url: '/vendors/categories', method: 'GET' }),
+      transformResponse: (response) => {
+        const data = response?.data || {};
+        return {
+          categories: data.categories || [],
+          needsCommunName: Boolean(data.needsCommunName),
+          communityCommunName: data.communityCommunName || null,
+        };
+      },
+      providesTags: ['VendorCategories'],
+    }),
     fetchSecretaryVendors: builder.query({
-      query: () => ({ url: '/vendors', method: 'GET' }),
+      query: (arg) => {
+        const params = {};
+        if (typeof arg === 'string') {
+          if (arg.trim()) params.search = arg.trim();
+        } else if (arg && typeof arg === 'object') {
+          if (arg.category) params.category = arg.category;
+          if (arg.search && arg.search.trim()) params.search = arg.search.trim();
+        }
+        return {
+          url: '/vendors',
+          method: 'GET',
+          params: Object.keys(params).length ? params : undefined,
+        };
+      },
       transformResponse: (response) => {
         const data = response?.data || {};
         return {
@@ -327,14 +353,14 @@ export const secretaryApi = createApi({
         data: { category, name, phone, email, service },
       }),
       transformResponse: (response) => response?.data?.vendor,
-      invalidatesTags: ['SecretaryVendors'],
+      invalidatesTags: ['SecretaryVendors', 'VendorCategories'],
     }),
     deleteSecretaryVendor: builder.mutation({
       query: (vendorId) => ({
         url: `/vendors/${vendorId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['SecretaryVendors'],
+      invalidatesTags: ['SecretaryVendors', 'VendorCategories'],
     }),
 
     // ─── Emergency Contacts ───────────────────────────────────────────────
@@ -595,6 +621,7 @@ export const {
   useFetchCommunityMembersCountQuery,
 
   // ── Vendors ──
+  useFetchVendorCategoriesQuery,
   useFetchSecretaryVendorsQuery,
   useCreateSecretaryVendorMutation,
   useDeleteSecretaryVendorMutation,
