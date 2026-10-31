@@ -23,21 +23,21 @@ const BG     = '#EDEEF6';
 const SLIDES = [
   {
     id: '1',
-    image: require('../../assets/images/onboard1.png'),
+    image: require('../../assets/images/onboard1.jpg'),
   },
   {
     id: '2',
     title: 'Connect With Experts',
     description:
       'View provider profiles, check experience, browse portfolios, and contact them directly.',
-    image: require('../../assets/images/onboard2.png'),
+    image: require('../../assets/images/onboard2.jpg'),
   },
   {
     id: '3',
     title: 'Share Your Skills & Grow',
     description:
       'Become a provider, showcase your expertise, and reach more customers.',
-    image: require('../../assets/images/onboard3.png'),
+    image: require('../../assets/images/onboard3.jpg'),
   },
 ];
 

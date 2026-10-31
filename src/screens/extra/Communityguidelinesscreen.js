@@ -150,7 +150,7 @@ const CommunityGuidelinesScreen = ({ navigation }) => {
                 </Text>
 
                 <Image
-                  source={require('../../assets/images/community_guidelines.png')}
+                  source={require('../../assets/images/community_guidelines.jpg')}
                   style={styles.heroBannerImage}
                   resizeMode="contain"
                 />

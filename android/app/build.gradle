@@ -22,13 +22,8 @@ android {
         applicationId "in.commun.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-<<<<<<< HEAD
-        versionCode 4
-        versionName "1.0.2"
-=======
         versionCode 3
         versionName "1.0.3"
->>>>>>> 4bc24a4d84741c3b1866f668e8cf829943fb5ae7
     }
 
     signingConfigs {

@@ -181,7 +181,7 @@ const TermsOfServiceScreen = ({ navigation }) => {
             </LinearGradient>
 
             <Image
-              source={require('../../assets/images/terms_hero.png')}
+              source={require('../../assets/images/terms_hero.jpg')}
               style={styles.heroImage}
               resizeMode="contain"
             />

@@ -44,6 +44,28 @@ const EMPTY_FORM = {
   service: '',
 };
 
+// ─── Default Approved Vendor Categories (Fallback if offline / initial load) ──
+const APPROVED_VENDOR_CATEGORIES_FALLBACK = [
+  'AC Service',
+  'Blood Sample Collection',
+  'Carpenter',
+  'Civil Contractor',
+  'Dry Cleaner',
+  'Electrician',
+  'Fabricator',
+  'Fitness',
+  'Garden Care',
+  'Internet',
+  'Masseuse',
+  'Milk Delivery',
+  'Newspaper Delivery',
+  'Pest Control',
+  'Plumber',
+  'Scrap Dealer',
+  'Tenting Lighting Decor',
+  'Water Tanker',
+];
+
 // ─── Vendor Card ──────────────────────────────────────────────────────────────
 const VendorCard = ({ vendor, onDelete, isOnline }) => {
   const phoneNumber = vendor.phone?.trim();
@@ -178,6 +200,7 @@ const AddVendorModal = ({
   categories = [],
   isLoadingCategories = false,
 }) => {
+  const insets = useSafeAreaInsets();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
@@ -189,9 +212,10 @@ const AddVendorModal = ({
   };
 
   const filteredCategories = useMemo(() => {
-    if (!categorySearch.trim()) return categories;
+    const list = categories && categories.length > 0 ? categories : APPROVED_VENDOR_CATEGORIES_FALLBACK;
+    if (!categorySearch.trim()) return list;
     const query = categorySearch.trim().toLowerCase();
-    return categories.filter(c => c.toLowerCase().includes(query));
+    return list.filter(c => String(c).toLowerCase().includes(query));
   }, [categories, categorySearch]);
 
   const selectCategory = (cat) => {
@@ -238,19 +262,44 @@ const AddVendorModal = ({
   };
 
   return (
-    <>
-      <Modal
-        visible={visible}
-        animationType="fade"
-        transparent
-        onRequestClose={handleClose}
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent
+      onRequestClose={() => {
+        if (showCategoryPicker) {
+          setShowCategoryPicker(false);
+        } else {
+          handleClose();
+        }
+      }}
+    >
+      <View
+        style={[
+          styles.modalRoot,
+          showCategoryPicker ? styles.modalRootPicker : styles.modalRootForm,
+        ]}
       >
-        <Pressable style={styles.modalBackdrop} onPress={handleClose}>
+        {/* Backdrop: dismisses category picker if open, or closes entire modal */}
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => {
+            if (showCategoryPicker) {
+              setShowCategoryPicker(false);
+            } else {
+              handleClose();
+            }
+          }}
+        />
+
+        {!showCategoryPicker ? (
+          /* Form View (Centered Dialog) */
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.modalKAV}
+            pointerEvents="box-none"
           >
-            <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalSheet}>
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
@@ -413,108 +462,125 @@ const AddVendorModal = ({
                   </TouchableOpacity>
                 </View>
               </ScrollView>
-            </Pressable>
+            </View>
           </KeyboardAvoidingView>
-        </Pressable>
-      </Modal>
+        ) : (
+          /* Category Picker View (Firmly stretched to the absolute BOTTOM edge) */
+          <View style={styles.pickerBottomContainer} pointerEvents="box-none">
+            <View
+              style={[
+                styles.pickerSheet,
+                { paddingBottom: Math.max(insets.bottom + scaleHeight(10), scaleHeight(24)) },
+              ]}
+            >
+              {/* Drag Handle Indicator */}
+              <View style={styles.pickerDragHandleWrap}>
+                <View style={styles.pickerDragHandle} />
+              </View>
 
-      {/* Category Picker Sub-Modal / Bottom Sheet (Admin-approved categories only) */}
-      <Modal
-        visible={showCategoryPicker}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowCategoryPicker(false)}
-      >
-        <Pressable
-          style={styles.pickerBackdrop}
-          onPress={() => setShowCategoryPicker(false)}
-        >
-          <Pressable
-            style={styles.pickerSheet}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
-                Select Category
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowCategoryPicker(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Icon name="close" size={scaleFont(22)} color={COLORS.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Quick Search */}
-            <View style={styles.pickerSearchWrap}>
-              <Icon name="search-outline" size={scaleFont(16)} color={COLORS.textMuted} />
-              <TextInput
-                style={styles.pickerSearchInput}
-                placeholder="Search categories…"
-                placeholderTextColor={COLORS.textMuted}
-                value={categorySearch}
-                onChangeText={setCategorySearch}
-                allowFontScaling={false}
-              />
-              {categorySearch ? (
-                <TouchableOpacity onPress={() => setCategorySearch('')}>
-                  <Icon name="close-circle" size={scaleFont(16)} color={COLORS.textMuted} />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            {/* Category Options List */}
-            <FlatList
-              data={filteredCategories}
-              keyExtractor={(item) => item}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <View style={styles.pickerEmptyWrap}>
-                  <Text style={styles.pickerEmptyText}>
-                    {categorySearch ? 'No matching category.' : 'No categories available.'}
-                  </Text>
-                  <Text style={styles.pickerEmptySubtext}>
-                    Please ask an administrator to configure vendor categories.
-                  </Text>
-                </View>
-              }
-              renderItem={({ item }) => {
-                const isSelected = form.category === item;
-                return (
+              <View style={styles.pickerHeader}>
+                <View style={styles.pickerHeaderTitleWrap}>
                   <TouchableOpacity
-                    style={[
-                      styles.categoryOption,
-                      isSelected && styles.categoryOptionSelected,
-                    ]}
-                    onPress={() => selectCategory(item)}
+                    style={styles.pickerBackBtn}
+                    onPress={() => setShowCategoryPicker(false)}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     activeOpacity={0.7}
                   >
-                    <Icon
-                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                      size={scaleFont(18)}
-                      color={isSelected ? COLORS.gradientStart : COLORS.textMuted}
-                    />
-                    <Text
-                      style={[
-                        styles.categoryOptionText,
-                        isSelected && styles.categoryOptionTextSelected,
-                      ]}
-                      maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
-                    >
-                      {item}
-                    </Text>
-                    {isSelected && (
-                      <Icon name="checkmark" size={scaleFont(18)} color={COLORS.gradientStart} />
-                    )}
+                    <Icon name="chevron-back" size={scaleFont(22)} color={COLORS.textPrimary} />
                   </TouchableOpacity>
-                );
-              }}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+                  <Text style={styles.pickerTitle} maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}>
+                    Select Category
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowCategoryPicker(false)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="close" size={scaleFont(22)} color={COLORS.textPrimary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Quick Search */}
+              <View style={styles.pickerSearchWrap}>
+                <Icon name="search-outline" size={scaleFont(16)} color={COLORS.textMuted} />
+                <TextInput
+                  style={styles.pickerSearchInput}
+                  placeholder="Search categories…"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={categorySearch}
+                  onChangeText={setCategorySearch}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  returnKeyType="search"
+                  allowFontScaling={false}
+                />
+                {categorySearch ? (
+                  <TouchableOpacity onPress={() => setCategorySearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Icon name="close-circle" size={scaleFont(18)} color={COLORS.textMuted} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              {/* Category Options List */}
+              <FlatList
+                data={filteredCategories}
+                keyExtractor={(item, index) => `${item}-${index}`}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+                style={styles.pickerList}
+                contentContainerStyle={[
+                  styles.pickerListContent,
+                  { paddingBottom: Math.max(insets.bottom + scaleHeight(20), scaleHeight(30)) },
+                ]}
+                ListEmptyComponent={
+                  <View style={styles.pickerEmptyWrap}>
+                    <Text style={styles.pickerEmptyText}>
+                      {categorySearch ? 'No matching category.' : 'No categories available.'}
+                    </Text>
+                    <Text style={styles.pickerEmptySubtext}>
+                      Please ask an administrator to configure vendor categories.
+                    </Text>
+                  </View>
+                }
+                renderItem={({ item }) => {
+                  const isSelected = form.category === item;
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryOption,
+                        isSelected && styles.categoryOptionSelected,
+                      ]}
+                      onPress={() => selectCategory(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Icon
+                        name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                        size={scaleFont(18)}
+                        color={isSelected ? COLORS.gradientStart : COLORS.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.categoryOptionText,
+                          isSelected && styles.categoryOptionTextSelected,
+                        ]}
+                        maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
+                      >
+                        {item}
+                      </Text>
+                      {isSelected && (
+                        <Icon name="checkmark" size={scaleFont(18)} color={COLORS.gradientStart} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          </View>
+        )}
+      </View>
+    </Modal>
   );
 };
 
@@ -546,17 +612,34 @@ const SecretaryVendorsScreen = ({ navigation }) => {
   const [deleteVendor] = useDeleteSecretaryVendorMutation();
 
   const vendors = useMemo(() => vendorsData?.vendors || [], [vendorsData]);
-  const apiCategories = useMemo(() => categoriesData?.categories || [], [categoriesData]);
+  const apiCategories = useMemo(() => {
+    let raw = [];
+    if (Array.isArray(categoriesData)) {
+      raw = categoriesData;
+    } else if (Array.isArray(categoriesData?.categories)) {
+      raw = categoriesData.categories;
+    } else if (Array.isArray(categoriesData?.data?.categories)) {
+      raw = categoriesData.data.categories;
+    } else if (Array.isArray(categoriesData?.data)) {
+      raw = categoriesData.data;
+    }
+    return raw
+      .map((item) => (typeof item === 'string' ? item : item?.name || item?.category || ''))
+      .filter(Boolean);
+  }, [categoriesData]);
   const needsCommunName = vendorsData?.needsCommunName || categoriesData?.needsCommunName || false;
 
   // Merge categories from API and vendors (matching Web `SecretaryVendors.jsx`)
+  // Uses APPROVED_VENDOR_CATEGORIES_FALLBACK if API has not yet returned, ensuring user is never blocked.
   const allCategories = useMemo(() => {
     const fromVendors = (vendors || []).reduce((acc, v) => {
       const key = v.category || '';
       if (key && !acc.includes(key)) acc.push(key);
       return acc;
     }, []);
-    const merged = Array.from(new Set([...apiCategories, ...fromVendors])).filter(Boolean);
+    const mergedList = [...apiCategories, ...fromVendors];
+    const sourceList = mergedList.length > 0 ? mergedList : APPROVED_VENDOR_CATEGORIES_FALLBACK;
+    const merged = Array.from(new Set(sourceList)).filter(Boolean);
     merged.sort((a, b) => String(a).localeCompare(String(b)));
     return merged;
   }, [apiCategories, vendors]);
@@ -755,6 +838,9 @@ const SecretaryVendorsScreen = ({ navigation }) => {
               Alert.alert('You are offline', 'Connect to the internet to add a vendor.');
               return;
             }
+            try {
+              refetchCategories?.();
+            } catch (_) { }
             setModalVisible(true);
           }}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -934,7 +1020,7 @@ const SecretaryVendorsScreen = ({ navigation }) => {
         onSubmit={handleAddVendor}
         isSubmitting={isCreating}
         categories={allCategories}
-        isLoadingCategories={isCategoriesLoading}
+        isLoadingCategories={isCategoriesLoading && allCategories.length === 0}
       />
     </SafeAreaView>
   );
@@ -1251,17 +1337,27 @@ const styles = StyleSheet.create({
   },
 
   // ── Add Vendor Modal ──
-  modalBackdrop: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: '100%',
+    height: '100%',
+  },
+  modalRootForm: {
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalRootPicker: {
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
   modalKAV: {
-    flex: 1,
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
   },
   modalSheet: {
     backgroundColor: COLORS.white,
@@ -1269,7 +1365,7 @@ const styles = StyleSheet.create({
     padding: scaleWidth(18),
     width: '92%',
     maxWidth: scaleWidth(400),
-    maxHeight: '85%',
+    maxHeight: scaleHeight(540),
     ...SHADOW.card,
     shadowOpacity: 0.2,
     shadowRadius: moderateScale(20, 0.3),
@@ -1398,30 +1494,61 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 
-  // ── Category Picker Sheet / Sub-Modal ──
-  pickerBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  // ── Category Picker Bottom Sheet (Firmly anchored to the absolute bottom) ──
+  pickerBottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
     justifyContent: 'flex-end',
   },
   pickerSheet: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: moderateScale(22, 0.3),
-    borderTopRightRadius: moderateScale(22, 0.3),
+    borderTopLeftRadius: moderateScale(24, 0.3),
+    borderTopRightRadius: moderateScale(24, 0.3),
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     paddingHorizontal: scaleWidth(20),
-    paddingTop: scaleHeight(18),
-    paddingBottom: scaleHeight(32),
-    maxHeight: '75%',
+    paddingTop: scaleHeight(10),
+    height: scaleHeight(560),
+    maxHeight: '85%',
+    width: '100%',
+    marginBottom: 0,
     ...SHADOW.card,
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: moderateScale(16, 0.3),
-    elevation: 10,
+    elevation: 35,
+  },
+  pickerDragHandleWrap: {
+    alignItems: 'center',
+    paddingVertical: scaleHeight(6),
+  },
+  pickerDragHandle: {
+    width: scaleWidth(40),
+    height: scaleHeight(4),
+    borderRadius: moderateScale(2, 0.3),
+    backgroundColor: '#D1D5DB',
+  },
+  pickerList: {
+    flex: 1,
+  },
+  pickerListContent: {
+    paddingBottom: scaleHeight(20),
   },
   pickerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: scaleHeight(12),
+  },
+  pickerHeaderTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleWidth(8),
+  },
+  pickerBackBtn: {
+    paddingRight: scaleWidth(4),
   },
   pickerTitle: {
     fontSize: scaleFont(17),

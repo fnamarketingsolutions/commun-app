@@ -312,11 +312,18 @@ export const secretaryApi = createApi({
     fetchVendorCategories: builder.query({
       query: () => ({ url: '/vendors/categories', method: 'GET' }),
       transformResponse: (response) => {
-        const data = response?.data || {};
+        const data = response?.data || response || {};
+        const categories = Array.isArray(data?.categories)
+          ? data.categories
+          : Array.isArray(response?.categories)
+          ? response.categories
+          : Array.isArray(data)
+          ? data
+          : [];
         return {
-          categories: data.categories || [],
-          needsCommunName: Boolean(data.needsCommunName),
-          communityCommunName: data.communityCommunName || null,
+          categories,
+          needsCommunName: Boolean(data.needsCommunName ?? response?.needsCommunName),
+          communityCommunName: data.communityCommunName || response?.communityCommunName || null,
         };
       },
       providesTags: ['VendorCategories'],
