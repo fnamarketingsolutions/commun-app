@@ -26,6 +26,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -35,6 +37,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Commun needs access to your camera so you can take a profile picture or photo for your services and community posts.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Commun uses your location to automatically fill in your address so neighbours and service providers near you can find you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
